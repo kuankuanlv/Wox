@@ -98,9 +98,13 @@ func firstPathChildCompletion(text string) (string, bool) {
 		}
 		if strings.HasPrefix(text, "~/") {
 			// Map the real child back under the "~" shorthand instead of
-			// echoing the user's typed casing (e.g. /TM -> /tmp/).
+			// echoing the user's typed casing (e.g. /TM -> /tmp/). Rel and
+			// Join strip the trailing slash, so re-append it for directories.
 			if rel, err := filepath.Rel(home, completed); err == nil {
 				completed = filepath.Join("~", rel)
+			}
+			if isDir {
+				completed += "/"
 			}
 		}
 		return completed, true
