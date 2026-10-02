@@ -1630,8 +1630,10 @@ func (a *App) onKey(event woxui.KeyEvent) bool {
 			return true
 		}
 		if event.Modifiers == 0 {
-			if !a.acceptQueryCompletionHint() {
-				a.rejectQueryTab()
+			if !a.completePathTab() {
+				if !a.acceptQueryCompletionHint() {
+					a.rejectQueryTab()
+				}
 			}
 			return true
 		}
