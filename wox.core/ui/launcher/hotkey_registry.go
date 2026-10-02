@@ -14,12 +14,13 @@ import (
 const builtinHotkeyPrefix = "BuiltinHotkey."
 
 // Built-in launcher-level hotkey IDs. The registry governs the configurable
-// app-internal shortcuts (about/settings/actionPanel); preview/webview/notes
+// app-internal shortcuts (about/settings/actionPanel/quit); preview/webview/notes
 // hotkeys stay in their module contexts on purpose (see docs/hotkey-registry-refactor-draft.md §2.2).
 const (
 	builtinHotkeyAbout       = "about"
 	builtinHotkeySettings    = "settings"
 	builtinHotkeyActionPanel = "actionPanel"
+	builtinHotkeyQuit        = "quit"
 )
 
 // builtinHotkeyAction is one registry entry. DefaultKey is the macOS form and
@@ -40,6 +41,7 @@ var builtinHotkeyDefinitionsList = []builtinHotkeyAction{
 	{ID: builtinHotkeyAbout, LabelKey: "i18n:ui_hotkey_overview_about", TooltipKey: "i18n:ui_builtin_hotkey_about_tips", DefaultKey: "command+shift+k", AltKey: "control+shift+k"},
 	{ID: builtinHotkeyActionPanel, LabelKey: "i18n:ui_action_panel_hotkey", TooltipKey: "i18n:ui_action_panel_hotkey_tips", DefaultKey: "command+k", AltKey: "control+k"},
 	{ID: builtinHotkeySettings, LabelKey: "i18n:ui_hotkey_overview_settings", TooltipKey: "i18n:ui_builtin_hotkey_settings_tips", DefaultKey: "command+,", AltKey: "control+,"},
+	{ID: builtinHotkeyQuit, LabelKey: "i18n:ui_hotkey_overview_quit", TooltipKey: "i18n:ui_builtin_hotkey_quit_tips", DefaultKey: "command+q", AltKey: "control+q"},
 }
 
 // builtinHotkeyDefinitions returns a copy of the registry for form/overview

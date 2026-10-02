@@ -83,7 +83,6 @@ type Manager struct {
 	systemThemeIds     []string
 	isUIReadyHandled   bool
 	isSystemDark       bool
-	exitOnce           sync.Once
 	hyprlandToggleMu   sync.Mutex
 	hyprlandToggleLast time.Time
 
@@ -1956,8 +1955,13 @@ func clampInt(v int, min int, max int) int {
 	return v
 }
 
-func (m *Manager) ExitApp(ctx context.Context) {
-	m.exitOnce.Do(func() {
+var exitApplicationOnce sync.Once
+
+// exitApplication tears the process down exactly once, no matter which entry
+// point asked: the tray quit menu (Manager.ExitApp) or the in-app quit hotkey
+// (CoreServices.ExitApp).
+func exitApplication(ctx context.Context) {
+	exitApplicationOnce.Do(func() {
 		util.GetLogger().Info(ctx, "start quitting")
 		plugin.GetPluginManager().Stop(ctx)
 		ai.ResetMCPClients()
@@ -1969,6 +1973,10 @@ func (m *Manager) ExitApp(ctx context.Context) {
 		}
 		os.Exit(0)
 	})
+}
+
+func (m *Manager) ExitApp(ctx context.Context) {
+	exitApplication(ctx)
 }
 
 func (m *Manager) GetActiveWindowSnapshot(ctx context.Context) common.ActiveWindowSnapshot {

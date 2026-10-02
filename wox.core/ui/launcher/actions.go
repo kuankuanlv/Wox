@@ -418,6 +418,13 @@ func (a *App) onActionKey(event woxui.KeyEvent) bool {
 		a.openSettingsFromHotkey()
 		return true
 	}
+	if matchesBuiltinHotkey(builtinHotkeyQuit, a.builtinHotkeyOverrides(), event) {
+		if event.Repeat {
+			return true
+		}
+		a.quitApp()
+		return true
+	}
 	if matchesBuiltinHotkeyEffective(a, builtinHotkeyActionPanel, event) {
 		if event.Repeat {
 			return true
@@ -483,6 +490,16 @@ func (a *App) openSettingsFromHotkey() bool {
 		return false
 	}
 	return true
+}
+
+// quitApp exits Wox through the shared once-only teardown (same path as the tray quit menu).
+func (a *App) quitApp() {
+	if a.services == nil {
+		return
+	}
+	if err := a.services.ExitApp(context.Background(), a.sessionID); err != nil {
+		log.Printf("quit app: %v", err)
+	}
 }
 
 // onAppQueryHotkey executes app-level query hotkeys (ExposeLevel = app) while
