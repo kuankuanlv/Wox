@@ -467,12 +467,12 @@ func (a *App) openWebViewInSystemBrowser() {
 	}
 }
 
-// syncWebViewActionHotkey pushes the configured Action Hotkey into the embedded preview.
+// syncWebViewActionHotkey pushes the effective Action Hotkey into the embedded preview.
 func (a *App) syncWebViewActionHotkey() {
 	if a == nil || a.window == nil {
 		return
 	}
-	_ = a.window.SetWebViewActionHotkey(a.actionPanelHotkey())
+	_ = a.window.SetWebViewActionHotkey(a.builtinHotkeyForEffective(builtinHotkeyActionPanel))
 }
 
 func isWebViewPreviewURL(rawURL string) bool {

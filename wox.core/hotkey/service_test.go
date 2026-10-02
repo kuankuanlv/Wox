@@ -117,3 +117,32 @@ func TestMainDictationConflict(t *testing.T) {
 		entries[0], entries[1] = entries[1], entries[0]
 	}
 }
+
+// TestAppLevelQueryHotkeysAreNotRegisteredSystemWide guards the exposure-level
+// contract: only global (or legacy empty) query hotkeys occupy system hotkeys;
+// app-level ones are dispatched by the launcher while Wox is focused.
+func TestAppLevelQueryHotkeysAreNotRegisteredSystemWide(t *testing.T) {
+	service := NewService(Callbacks{})
+	service.collectWoxConfig(context.Background(), WoxConfig{
+		QueryHotkeys: []setting.QueryHotkey{
+			{Hotkey: "capslock+a", Query: "global-one"},
+			{Hotkey: "capslock+b", Query: "legacy-empty", ExposeLevel: ""},
+			{Hotkey: "capslock+c", Query: "app-one", ExposeLevel: setting.QueryHotkeyExposeLevelApp},
+			{Hotkey: "capslock+d", Query: "disabled", Disabled: true},
+		},
+	})
+	var queryEntries []Entry
+	for _, entry := range service.Snapshot() {
+		if entry.Source == SourceQuery {
+			queryEntries = append(queryEntries, entry)
+		}
+	}
+	if len(queryEntries) != 2 {
+		t.Fatalf("expected 2 system-wide query hotkeys (global + legacy), got %d: %+v", len(queryEntries), queryEntries)
+	}
+	for _, entry := range queryEntries {
+		if entry.CombineKey == "capslock+c" {
+			t.Fatal("app-level query hotkey must not be registered system-wide")
+		}
+	}
+}

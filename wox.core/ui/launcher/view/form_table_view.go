@@ -1320,7 +1320,7 @@ func formTableRowControl(props FormTableRowFieldProps, width, height float32) wo
 		return formTableRowAppControl(props, width, height)
 	case "select", "selectAIModel":
 		return formTableRowSelectControl(props, width, height)
-	case "hotkey", "dictationHotkey":
+	case "hotkey":
 		recorder, recorderWidth := woxcomponent.WoxHotkeyRecorder(woxcomponent.HotkeyRecorderProps{
 			ID: props.ID, Labels: props.HotkeyLabels, Placeholder: props.Placeholder, Focused: props.Focused, Error: props.RecordingError, Hold: props.Hold, HoldPrefix: props.HoldPrefix,
 			Window: props.Window, Theme: props.Theme, OnFocusChange: props.OnFocusChange, OnKey: props.OnKey,

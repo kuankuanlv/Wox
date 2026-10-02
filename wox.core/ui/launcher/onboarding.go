@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"wox/resource"
+	"wox/setting"
 	"wox/ui/contract"
 	woxcomponent "wox/ui/launcher/component"
 	launcherview "wox/ui/launcher/view"
@@ -579,7 +580,7 @@ func (a *App) saveOnboardingQueryHotkey(hotkey string) {
 	state.saving = true
 	state.error = ""
 	items := upsertOnboardingQueryHotkey(a.generalSettings.Data().QueryHotkeys, hotkey)
-	raw, err := json.Marshal(items)
+	raw, err := persistOnboardingQueryHotkeys(a, items)
 	if err != nil {
 		state.saving = false
 		state.error = err.Error()
@@ -587,7 +588,7 @@ func (a *App) saveOnboardingQueryHotkey(hotkey string) {
 	}
 	util.Go(a.lifecycleCtx, "save onboarding query hotkey", func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-		err := a.services.UpdateGeneralSetting(ctx, a.sessionID, "QueryHotkeys", string(raw))
+		err := a.services.UpdateGeneralSetting(ctx, a.sessionID, "QueryHotkeys", raw)
 		cancel()
 		if err == nil {
 			err = a.reloadSettings()
@@ -631,7 +632,7 @@ func (a *App) toggleOnboardingQueryHotkey(enabled bool) {
 		return
 	}
 	state.saving = true
-	raw, err := json.Marshal(removeOnboardingQueryHotkey(a.generalSettings.Data().QueryHotkeys))
+	raw, err := persistOnboardingQueryHotkeys(a, removeOnboardingQueryHotkey(a.generalSettings.Data().QueryHotkeys))
 	if err != nil {
 		state.saving = false
 		state.selected = true
@@ -641,7 +642,7 @@ func (a *App) toggleOnboardingQueryHotkey(enabled bool) {
 	}
 	util.Go(a.lifecycleCtx, "remove onboarding query hotkey", func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-		err := a.services.UpdateGeneralSetting(ctx, a.sessionID, "QueryHotkeys", string(raw))
+		err := a.services.UpdateGeneralSetting(ctx, a.sessionID, "QueryHotkeys", raw)
 		cancel()
 		if err == nil {
 			err = a.reloadSettings()
@@ -671,12 +672,13 @@ func upsertOnboardingQueryHotkey(current []queryHotkeySetting, hotkey string) []
 		if strings.EqualFold(strings.TrimSpace(item.Query), "cb") {
 			items[index].Hotkey = hotkey
 			items[index].Disabled = false
+			items[index].ExposeLevel = setting.QueryHotkeyExposeLevelApp
 			updated = true
 			break
 		}
 	}
 	if !updated {
-		items = append(items, queryHotkeySetting{Hotkey: hotkey, Query: "cb "})
+		items = append(items, queryHotkeySetting{Hotkey: hotkey, Query: "cb ", ExposeLevel: setting.QueryHotkeyExposeLevelApp})
 	}
 	return items
 }
@@ -689,6 +691,17 @@ func removeOnboardingQueryHotkey(current []queryHotkeySetting) []queryHotkeySett
 		}
 	}
 	return items
+}
+
+// persistOnboardingQueryHotkeys merges the updated list into the shared
+// settings memory and serializes the full list for the single data key.
+func persistOnboardingQueryHotkeys(a *App, items []queryHotkeySetting) (string, error) {
+	a.generalSettings.Update(func(d *settingsData) { d.QueryHotkeys = items })
+	raw, err := json.Marshal(a.generalSettings.Data().QueryHotkeys)
+	if err != nil {
+		return "", err
+	}
+	return string(raw), nil
 }
 
 // onboardingRecommendedPlugins selects the curated store entries in their intended display order.

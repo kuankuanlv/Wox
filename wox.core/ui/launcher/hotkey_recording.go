@@ -14,8 +14,11 @@ import (
 	utilhotkey "wox/util/hotkey"
 )
 
-var defaultHotkeyRecordingKinds = []string{"normalCombo", "doubleModifier", "capsLockCombo"}
-var dictationHotkeyRecordingKinds = []string{"normalCombo", "doubleModifier", "capsLockCombo", "pressModifier", "holdModifier"}
+// defaultHotkeyRecordingKinds is the universal recording-form set for any
+// hotkey field. holdModifier (press-and-hold) used to be exclusive to the
+// dictation plugin; it is now a generic capability so any plugin can declare
+// a hold-style hotkey without a dedicated setting type.
+var defaultHotkeyRecordingKinds = []string{"normalCombo", "doubleModifier", "capsLockCombo", "pressModifier", "holdModifier"}
 
 type hotkeyRecordingState struct {
 	diagnosticCtx   context.Context
@@ -59,7 +62,7 @@ func (a *App) startHotkeyRecording(idPrefix string, target *formFieldsState, ind
 	if len(allowedKinds) == 0 {
 		allowedKinds = defaultHotkeyRecordingKinds
 	}
-	if runtime.GOOS == "windows" && persistKey == "MainHotkey" {
+	if runtime.GOOS == "windows" && persistKey == "MainHotkey" && !containsString(allowedKinds, "pressModifier") {
 		allowedKinds = append(append([]string{}, allowedKinds...), "pressModifier")
 	}
 	allowed := make(map[string]bool, len(allowedKinds))
@@ -69,7 +72,7 @@ func (a *App) startHotkeyRecording(idPrefix string, target *formFieldsState, ind
 	if rec := a.hotkeySettings.Recording(); rec != nil && rec.target == target && rec.fieldIndex == index && !rec.statusError {
 		return
 	}
-	if target == nil || index < 0 || index >= len(target.definitions) || (target.definitions[index].Type != "hotkey" && target.definitions[index].Type != "dictationHotkey") || !a.hotkeyRecordingTargetCurrentLocked(target) {
+	if target == nil || index < 0 || index >= len(target.definitions) || target.definitions[index].Type != "hotkey" || !a.hotkeyRecordingTargetCurrentLocked(target) {
 		return
 	}
 	setFormFieldsFocusLocked(target, index)
@@ -89,9 +92,6 @@ func (a *App) startHotkeyRecording(idPrefix string, target *formFieldsState, ind
 	a.invalidateHotkeyWindows()
 
 	purpose := "normal"
-	if target.definitions[index].Type == "dictationHotkey" {
-		purpose = "dictation"
-	}
 	util.Go(a.lifecycleCtx, "start hotkey recording", func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 		capability, err := a.services.StartHotkeyRecording(ctx, a.sessionID, purpose, allowedKinds)
@@ -123,9 +123,6 @@ func (a *App) startHotkeyRecording(idPrefix string, target *formFieldsState, ind
 }
 
 func (a *App) hotkeyRecordingHint(definition formDefinition, allowedKinds []string) string {
-	if definition.Type == "dictationHotkey" {
-		return a.translate("i18n:ui_hotkey_dictation_press_hint")
-	}
 	if containsString(allowedKinds, "pressModifier") {
 		return a.translate("i18n:ui_hotkey_modifier_press_hint")
 	}
@@ -390,6 +387,22 @@ func (a *App) saveRecordedHotkeySetting(state *hotkeyRecordingState, key, value,
 		} else {
 			if a.onboardingOpen && state.persistKey == "MainHotkey" {
 				a.onboardingError = ""
+			}
+			if strings.HasPrefix(state.persistKey, builtinHotkeyPrefix) {
+				id := strings.TrimPrefix(state.persistKey, builtinHotkeyPrefix)
+				a.generalSettings.Update(func(d *settingsData) {
+					if d.BuiltinHotkeyOverrides == nil {
+						d.BuiltinHotkeyOverrides = map[string]string{}
+					}
+					if strings.TrimSpace(value) == "" {
+						delete(d.BuiltinHotkeyOverrides, id)
+					} else {
+						d.BuiltinHotkeyOverrides[id] = value
+					}
+				})
+				if id == builtinHotkeyActionPanel {
+					a.syncWebViewActionHotkey()
+				}
 			}
 			switch state.persistKey {
 			case "MainHotkey":

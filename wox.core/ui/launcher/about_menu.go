@@ -41,11 +41,6 @@ const (
 	aboutMenuTooltipName = "go-ui-about-menu"
 )
 
-// aboutMenuHotkey is the launcher-local shortcut: primary+shift+k.
-func aboutMenuHotkey() string {
-	return primaryHotkey("shift+k")
-}
-
 // aboutMenuVersionTail formats the running version for the Changelog row.
 func aboutMenuVersionTail(version string) string {
 	version = strings.TrimSpace(version)
@@ -259,7 +254,7 @@ func (a *App) onAboutMenuHover(inside bool, bounds woxui.Rect) {
 	}
 	a.setNativeHoverTooltipWithHotkeys(
 		&a.aboutMenuTooltipRevision, aboutMenuTooltipName, "update about menu tooltip",
-		inside, a.translate("i18n:toolbar_about_menu"), formatHotkeyLabels(aboutMenuHotkey()), bounds, "top",
+		inside, a.translate("i18n:toolbar_about_menu"), formatHotkeyLabels(a.builtinHotkeyForEffective(builtinHotkeyAbout)), bounds, "top",
 		func() *woxui.Window { return a.window },
 	)
 }

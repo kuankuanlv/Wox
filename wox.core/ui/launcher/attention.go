@@ -24,7 +24,7 @@ func (a *App) buildAttentionUnread(unreadCount int, palette uiPalette, width flo
 }
 
 func (a *App) attentionUnreadTooltip() string {
-	hotkey := strings.Join(formatHotkeyLabels(primaryHotkey("u")), "+")
+	hotkey := strings.Join(formatHotkeyLabels(builtinHotkeyDefaultKey(builtinHotkeyAttention)), "+")
 	return strings.ReplaceAll(a.translate("i18n:ui_attention_unread_tooltip"), "{hotkey}", hotkey)
 }
 

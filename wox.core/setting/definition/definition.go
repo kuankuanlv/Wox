@@ -26,7 +26,6 @@ const (
 	// Wox-internal setting types used by system plugins. These are not part
 	// of the public plugin API and are rendered by dedicated UI widgets.
 	PluginSettingDefinitionTypeHotkey           PluginSettingDefinitionType = "hotkey"
-	PluginSettingDefinitionTypeDictationHotkey  PluginSettingDefinitionType = "dictationHotkey"
 	PluginSettingDefinitionTypeDictationModel   PluginSettingDefinitionType = "dictationModel"
 	PluginSettingDefinitionTypeOCRModel         PluginSettingDefinitionType = "ocrModel"
 	PluginSettingDefinitionTypeStats            PluginSettingDefinitionType = "stats"
@@ -176,8 +175,11 @@ func (n *PluginSettingDefinitionItem) UnmarshalJSON(b []byte) error {
 		}
 		n.Value = &v
 	case "dictationHotkey":
-		n.Type = PluginSettingDefinitionTypeDictationHotkey
-		var v PluginSettingValueDictationHotkey
+		// Legacy type name kept for parsing compatibility. Dictation is an
+		// ordinary plugin and its hotkey field uses the generic hotkey type;
+		// the value shape is identical so existing definitions load unchanged.
+		n.Type = PluginSettingDefinitionTypeHotkey
+		var v PluginSettingValueHotkey
 		unmarshalErr := json.Unmarshal([]byte(contentResult.String()), &v)
 		if unmarshalErr != nil {
 			return unmarshalErr

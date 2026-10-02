@@ -144,8 +144,12 @@ func (a *App) buildFormField(fields formFieldsSnapshot, callbacks formFieldCallb
 		return a.buildFormTextbox(fields, callbacks, palette, index, definition, width, height)
 	case "checkbox":
 		return a.buildFormChoice(fields, callbacks, palette, index, definition, width, height, fields.values[value.Key] == "true", "")
-	case "hotkey", "dictationHotkey":
+	case "hotkey":
 		return a.buildFormHotkey(fields, callbacks, palette, index, definition, width, height)
+	case "pluginHotkey":
+		// Read-only aggregated plugin hotkey row; activation jumps to the
+		// owning plugin's settings page (see openPluginHotkeySettings).
+		return launcherview.FormStaticField(launcherview.FormStaticFieldProps{Width: width, Height: height, Value: value.Content, Kind: "label", Theme: palette})
 	case "app":
 		return a.buildFormApp(fields, callbacks, palette, index, definition, width, height)
 	case "selectAIModel":

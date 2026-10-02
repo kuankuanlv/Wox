@@ -191,7 +191,7 @@ func (a *App) formTableFieldProps(fields formFieldsSnapshot, callbacks formField
 	demoKind := ""
 	if callbacks.idPrefix == "hotkey-settings" || callbacks.idPrefix == "general-settings" {
 		switch definition.Value.Key {
-		case "QueryHotkeys":
+		case "QueryHotkeysGlobal", "QueryHotkeysApp":
 			demoKind = "query-hotkeys"
 		case "QueryAliases":
 			demoKind = "query-aliases"
@@ -340,7 +340,7 @@ func (a *App) formTableRowStatus(columns []formTableColumn, row map[string]any) 
 func (a *App) formTableViewCell(column formTableColumn, row map[string]any, theme woxcomponent.ControlTheme, imageScale float32) launcherview.FormTableCell {
 	text := a.formTableDisplayValue(column, row)
 	cell := launcherview.FormTableCell{Text: compactFormTableText(text, 80), SearchText: text}
-	if column.Type == "hotkey" || column.Type == "dictationHotkey" {
+	if column.Type == "hotkey" {
 		// Format only the visible label; raw text remains searchable and editable.
 		cell.Text = strings.Join(formatHotkeyLabels(text), " + ")
 		if strings.HasPrefix(strings.TrimSpace(text), "hold:") {
@@ -461,7 +461,7 @@ func (a *App) buildFormTableOverlay(snapshot *formTableEditorSnapshot, palette w
 			statusHeight = 28
 		}
 		panelHeight = max(float32(0), min(max(float32(48), contentHeight)+launcherview.FormTableRowEditorFooterHeight+statusHeight+48, height-56))
-		if snapshot.definition.Value.Key == "QueryHotkeys" {
+		if isQueryHotkeysTableKey(snapshot.definition.Value.Key) {
 			panelHeight = max(float32(0), min(float32(632), height-56))
 		}
 		bodyHeight = max(float32(48), panelHeight-48)
@@ -560,7 +560,7 @@ func (a *App) formTableRowContentHeight(definitions []formDefinition, fieldError
 }
 
 func (a *App) formTableRowEditorVisible(snapshot *formTableEditorSnapshot) func(formDefinition) bool {
-	if snapshot == nil || snapshot.definition.Value.Key != "QueryHotkeys" {
+	if snapshot == nil || !isQueryHotkeysTableKey(snapshot.definition.Value.Key) {
 		return nil
 	}
 	editing := snapshot.rowIndex >= 0
@@ -657,7 +657,7 @@ func (a *App) buildFormTableRowEditor(snapshot *formTableEditorSnapshot, palette
 	rowForm := snapshot.rowForm
 	callbacks := formFieldCallbacks{idPrefix: "form-table-row", imageScale: imageScale, focus: a.focusFormTableRowField, change: a.changeFormTableRowChoice, setText: a.setFormTableRowText, onKey: a.onFormTableKey, openChoice: a.openFormTableRowChoice, pickDir: a.pickFormTableRowDirectory, pickApp: a.openFormTableAppPicker, recordKey: a.recordFormTableRowHotkey}
 	definitions := rowForm.definitions
-	if snapshot.definition.Value.Key == "QueryHotkeys" {
+	if isQueryHotkeysTableKey(snapshot.definition.Value.Key) {
 		visible := make([]formDefinition, 0, len(definitions))
 		for _, definition := range definitions {
 			if queryHotkeyFieldVisible(snapshot.queryPreset, definition.Value.Key, snapshot.rowIndex >= 0) {
@@ -736,7 +736,7 @@ func (a *App) buildFormTableRowEditor(snapshot *formTableEditorSnapshot, palette
 		}))
 	}
 	title := ""
-	if snapshot.definition.Value.Key == "QueryHotkeys" {
+	if isQueryHotkeysTableKey(snapshot.definition.Value.Key) {
 		title = a.translate("i18n:ui_query_hotkeys_dialog_create_title")
 		if snapshot.rowIndex >= 0 {
 			title = a.translate("i18n:ui_query_hotkeys_dialog_edit_title")
@@ -748,7 +748,7 @@ func (a *App) buildFormTableRowEditor(snapshot *formTableEditorSnapshot, palette
 		Status: snapshot.status, CancelLabel: a.translate("i18n:ui_cancel"), SaveLabel: saveLabel, Theme: palette,
 		OnCancel: a.cancelFormTableRowEdit, OnSave: a.saveFormTableRowEdit,
 	}
-	if snapshot.definition.Value.Key == "QueryHotkeys" {
+	if isQueryHotkeysTableKey(snapshot.definition.Value.Key) {
 		demoIcon := a.imageForTint(settingControlIconSource("demo"), &palette.Text, physicalImageSize(15, imageScale))
 		props.HeaderHeight = 122
 		props.Header = launcherview.QueryHotkeyEditorHeader(launcherview.QueryHotkeyEditorHeaderProps{
@@ -865,7 +865,7 @@ func (a *App) buildFormTableRowField(fields formFieldsSnapshot, callbacks formFi
 			props.SelectIcon = a.imageForSurface(selectedIcon, physicalImageSize(18, callbacks.imageScale), palette.Background)
 		}
 		props.OnChoiceTap = func(anchor woxui.Rect) { callbacks.openChoice(index, anchor) }
-	case "hotkey", "dictationHotkey":
+	case "hotkey":
 		presentation := a.hotkeyRecordingFieldStatus("form-table-row", index)
 		if presentation.Active {
 			fieldValue = presentation.Value

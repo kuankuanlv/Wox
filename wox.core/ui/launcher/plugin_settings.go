@@ -313,6 +313,15 @@ func (a *App) reloadPlugins(store bool, preferredID string) error {
 		}
 		requestModels, requestProviders = a.queuePluginFormAIModelsLocked()
 		a.invalidateSettingsWindow()
+		if a.settingTab == "hotkey" {
+			// The hotkey tab shows aggregated plugin hotkeys; rebuild its form
+			// now that the plugin catalog is available.
+			util.Go(a.lifecycleCtx, "rebuild hotkey form after plugin load", func() {
+				if err := a.reloadSettingsWithForms(true); err != nil {
+					log.Printf("rebuild hotkey form: %v", err)
+				}
+			})
+		}
 	}); err != nil {
 		return err
 	}
@@ -1151,7 +1160,7 @@ func (a *App) onPluginSettingsKey(event woxui.KeyEvent) bool {
 				anchor, _ = host.BoundsForKey(woxwidget.Key(fmt.Sprintf("plugin-settings-field-%d", focused)))
 			}
 			a.openPluginModelManager(focused, anchor)
-		} else if fieldType == "dictationHotkey" {
+		} else if fieldType == "hotkey" {
 			a.recordPluginFormHotkey(focused)
 		} else if fieldType == "select" || fieldType == "selectAIModel" {
 			a.openFocusedPluginFormChoice(focused)
@@ -1208,14 +1217,14 @@ func (a *App) runPluginServiceAction(actionID string) {
 	})
 }
 
-// recordPluginFormHotkey reuses core's dictation-aware recorder while keeping the value staged with other plugin changes.
+// recordPluginFormHotkey starts the shared recorder for a plugin hotkey field while keeping the value staged with other plugin changes.
 func (a *App) recordPluginFormHotkey(index int) {
 	state := a.pluginSettings.Form()
-	if state == nil || index < 0 || index >= len(state.definitions) || state.definitions[index].Type != "dictationHotkey" {
+	if state == nil || index < 0 || index >= len(state.definitions) || state.definitions[index].Type != "hotkey" {
 		return
 	}
 	target := &state.formFieldsState
-	a.startHotkeyRecording("plugin-settings", target, index, "", dictationHotkeyRecordingKinds, nil)
+	a.startHotkeyRecording("plugin-settings", target, index, "", defaultHotkeyRecordingKinds, nil)
 }
 
 // activatePluginForm transfers keyboard and IME ownership from the plugin list to its first field.

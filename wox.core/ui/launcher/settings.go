@@ -48,6 +48,7 @@ type settingsData struct {
 	MainHotkeyRegistrationError        string
 	SelectionHotkey                    string
 	ActionPanelHotkey                  string
+	BuiltinHotkeyOverrides             map[string]string
 	IgnoreHotkeysOnFullscreen          bool
 	FullscreenDetectionSupported       bool
 	IgnoredHotkeyApps                  json.RawMessage
@@ -110,6 +111,7 @@ type queryHotkeySetting struct {
 	Width             int
 	MaxResultCount    int
 	Position          string
+	ExposeLevel       string
 	Disabled          bool
 }
 
@@ -534,7 +536,7 @@ func (a *App) reloadSettingsWithForms(forceForms bool) error {
 	if err := a.runOnUI("apply general settings snapshot", func() {
 		if forceForms || a.settingsOpen || a.onboardingOpen {
 			aiForm := newAISettingsForm(data)
-			hotkeyForm := newHotkeySettingsForm(data)
+			hotkeyForm := newHotkeySettingsForm(data, collectPluginHotkeySummaries(a.pluginSettings.Plugins(), a.translate))
 			generalForm := newGeneralQuerySettingsForm(data)
 			applyAIProviderCatalogLocked(&aiForm, a.aiSettings.ProviderCatalog())
 			aiForm.active = a.settingsOpen && a.settingTab == "ai"
@@ -619,7 +621,7 @@ func settingsDataFromContract(loaded contract.GeneralSettings) (settingsData, er
 		queryHotkeys[index] = queryHotkeySetting{
 			Name: item.Name, Hotkey: item.Hotkey, Query: item.Query, IsSilentExecution: item.IsSilentExecution,
 			HideQueryBox: item.HideQueryBox, HideToolbar: item.HideToolbar, Width: item.Width,
-			MaxResultCount: item.MaxResultCount, Position: string(item.Position), Disabled: item.Disabled,
+			MaxResultCount: item.MaxResultCount, Position: string(item.Position), ExposeLevel: item.ExposeLevel, Disabled: item.Disabled,
 		}
 	}
 	queryAliases := make([]queryAliasSetting, len(loaded.QueryAliases))
@@ -634,6 +636,7 @@ func settingsDataFromContract(loaded contract.GeneralSettings) (settingsData, er
 		MainHotkeyRegistrationError:        loaded.MainHotkeyRegistrationError,
 		SelectionHotkey:                    loaded.SelectionHotkey,
 		ActionPanelHotkey:                  loaded.ActionPanelHotkey,
+		BuiltinHotkeyOverrides:             loaded.BuiltinHotkeyOverrides,
 		IgnoreHotkeysOnFullscreen:          loaded.IgnoreHotkeysOnFullscreen,
 		FullscreenDetectionSupported:       loaded.FullscreenDetectionSupported,
 		IgnoredHotkeyApps:                  ignoredHotkeyApps,
@@ -924,7 +927,9 @@ func (a *App) selectSettingTab(tab string) {
 		a.themeSettings.SetThemesMode("installed")
 	}
 	pluginSnap := a.pluginSettings.Snapshot()
-	loadPlugins = tab == "plugins" && !pluginSnap.PluginsLoaded && !pluginSnap.PluginsLoading
+	// The hotkey tab also consumes the plugin catalog for its aggregated
+	// plugin hotkeys group, so load it there as well.
+	loadPlugins = (tab == "plugins" || tab == "hotkey") && !pluginSnap.PluginsLoaded && !pluginSnap.PluginsLoading
 	themeEditor := a.themeSettings.ThemeEditor()
 	loadTheme = tab == "theme" && a.themeSettings.ThemesMode() == "editor" && (themeEditor == nil || !strings.HasPrefix(themeEditor.key, "settings-theme|"))
 	loadThemes = tab == "theme" && a.themeSettings.ThemesMode() != "editor" && !a.themeSettings.ThemesLoaded() && !a.themeSettings.ThemesLoading()

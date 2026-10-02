@@ -132,6 +132,7 @@ type GeneralSettings struct {
 	MainHotkeyRegistrationError        string
 	SelectionHotkey                    string
 	ActionPanelHotkey                  string
+	BuiltinHotkeyOverrides             map[string]string
 	IgnoreHotkeysOnFullscreen          bool
 	FullscreenDetectionSupported       bool
 	IgnoredHotkeyApps                  []setting.IgnoredHotkeyApp

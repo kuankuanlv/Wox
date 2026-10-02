@@ -21,6 +21,39 @@ type ignoredHotkeyApp struct {
 	Icon     woxImage
 }
 
+// pluginHotkeySummary is one aggregated plugin-declared hotkey shown in the
+// plugin hotkeys group of the Hotkey settings tab. It is read-only: edits
+// happen in the plugin's own settings page (openPluginHotkeySettings).
+type pluginHotkeySummary struct {
+	PluginID   string
+	PluginName string
+	Display    string
+}
+
+// collectPluginHotkeySummaries aggregates hotkey fields declared by enabled
+// plugins, in plugin order. Legacy dictationHotkey definitions are normalized
+// to "hotkey" at load, so only the generic type is matched here.
+func collectPluginHotkeySummaries(plugins []pluginSettingsPlugin, translate func(string) string) []pluginHotkeySummary {
+	summaries := make([]pluginHotkeySummary, 0, len(plugins))
+	for _, plugin := range plugins {
+		if plugin.IsDisable {
+			continue
+		}
+		for _, field := range plugin.SettingDefinitions {
+			if field.Type != "hotkey" {
+				continue
+			}
+			label := translate(field.Value.Label)
+			value := plugin.Setting.Settings[field.Value.Key]
+			display := plugin.Name + " · " + label + "：" + strings.Join(formatHotkeyLabels(value), " + ")
+			summaries = append(summaries, pluginHotkeySummary{
+				PluginID: plugin.ID, PluginName: plugin.Name, Display: display,
+			})
+		}
+	}
+	return summaries
+}
+
 // buildHotkeySettingsPage prepares shared form fields for the pure settings page.
 func (a *App) buildHotkeySettingsPage(snapshot settingsSnapshot, width, height float32) woxwidget.Widget {
 	if snapshot.hotkey.Form == nil {
@@ -40,9 +73,14 @@ func (a *App) buildHotkeySettingsPage(snapshot settingsSnapshot, width, height f
 	})
 }
 
-// newHotkeySettingsForm maps global bindings and query hotkeys onto the shared form/table engine.
-func newHotkeySettingsForm(data settingsData) formFieldsState {
+// newHotkeySettingsForm maps global bindings, app-level hotkeys, query
+// hotkeys and plugin-declared hotkeys onto the shared form/table engine,
+// grouped by exposure level.
+func newHotkeySettingsForm(data settingsData, pluginHotkeys []pluginHotkeySummary) formFieldsState {
 	definitions := []formDefinition{
+		// Group 1: system-wide hotkeys, active while any app is frontmost.
+		{Type: "head", Value: formDefinitionValue{Content: "i18n:ui_hotkey_group_global"}},
+		{Type: "label", Value: formDefinitionValue{Content: "i18n:ui_hotkey_group_global_tips"}},
 		{Type: "hotkey", Value: formDefinitionValue{Key: "MainHotkey", Label: "i18n:ui_hotkey", Tooltip: "i18n:ui_hotkey_tips"}},
 	}
 	if !data.IsLinuxWaylandSession {
@@ -50,43 +88,91 @@ func newHotkeySettingsForm(data settingsData) formFieldsState {
 			formDefinition{Type: "hotkey", Value: formDefinitionValue{Key: "SelectionHotkey", Label: "i18n:ui_selection_hotkey", Tooltip: "i18n:ui_selection_hotkey_tips"}},
 		)
 	}
-	definitions = append(definitions, formDefinition{Type: "hotkey", Value: formDefinitionValue{Key: "ActionPanelHotkey", Label: "i18n:ui_action_panel_hotkey", Tooltip: "i18n:ui_action_panel_hotkey_tips"}})
+	definitions = append(definitions,
+		formDefinition{Type: "table", Value: formDefinitionValue{
+			Key: "QueryHotkeysGlobal", Title: "i18n:ui_query_hotkeys_global_title", Tooltip: "i18n:ui_query_hotkeys_tips", SortColumnKey: "Query", InlineTable: true, UpdateDialogWidth: 700,
+			Columns: []formTableColumn{
+				{Key: "Name", Label: "i18n:ui_query_hotkeys_name", Tooltip: "i18n:ui_query_hotkeys_name_tooltip", Width: 130, Type: "text"},
+				{Key: "Hotkey", Label: "i18n:ui_query_hotkeys_hotkey", Tooltip: "i18n:ui_query_hotkeys_hotkey_tooltip", Width: 120, Type: "hotkey", Validators: []formValidator{{Type: "not_empty"}}},
+				{Key: "Query", Label: "i18n:ui_query_hotkeys_query", Tooltip: "i18n:ui_query_hotkeys_query_tooltip", Type: "queryHotkeyQuery", QueryTest: true, Validators: []formValidator{{Type: "not_empty"}}},
+				{Key: "ExposeLevel", Label: "i18n:ui_query_hotkeys_expose_level", Tooltip: "i18n:ui_query_hotkeys_expose_level_tooltip", Width: 110, Type: "select", SelectOptions: queryHotkeyExposeLevelOptions()},
+				{Key: "Position", Label: "i18n:ui_query_hotkeys_position", Tooltip: "i18n:ui_query_hotkeys_position_tooltip", Width: 120, Type: "select", HideInTable: true, SelectOptions: queryHotkeyPositionOptions()},
+				{Key: "HideQueryBox", Label: "i18n:ui_query_hotkeys_hide_query_box", Tooltip: "i18n:ui_query_hotkeys_hide_query_box_tooltip", Width: 80, Type: "checkbox", HideInTable: true},
+				{Key: "HideToolbar", Label: "i18n:ui_query_hotkeys_hide_toolbar", Tooltip: "i18n:ui_query_hotkeys_hide_toolbar_tooltip", Width: 80, Type: "checkbox", HideInTable: true},
+				{Key: "Width", Label: "i18n:ui_query_hotkeys_width", Tooltip: "i18n:ui_query_hotkeys_width_tooltip", Width: 50, Type: "text", HideInTable: true, EmptyAsZero: true, Validators: optionalIntegerValidators(false, 0, 0, "")},
+				{Key: "MaxResultCount", Label: "i18n:ui_query_hotkeys_max_result_count", Tooltip: "i18n:ui_query_hotkeys_max_result_count_tooltip", Width: 90, Type: "text", HideInTable: true, EmptyAsZero: true, Validators: optionalIntegerValidators(true, 5, 15, "i18n:ui_query_hotkeys_max_result_count_range_error")},
+				{Key: "IsSilentExecution", Label: "i18n:ui_query_hotkeys_silent", Tooltip: "i18n:ui_query_hotkeys_silent_tooltip", Width: 40, Type: "checkbox", HideInTable: true},
+				{Key: "Disabled", Label: "i18n:ui_disabled", Tooltip: "i18n:ui_disabled_tooltip", Width: 60, Type: "checkbox"},
+			},
+		}},
+		formDefinition{Type: "table", Value: formDefinitionValue{
+			Key: "ResultBindings", Title: "i18n:ui_result_bindings", Tooltip: "i18n:ui_result_bindings_tips", SortColumnKey: "Title", InlineTable: true,
+			Columns: []formTableColumn{
+				{Key: "Title", Label: "i18n:ui_result_bindings_title", Tooltip: "i18n:ui_result_bindings_title_tooltip", Width: 220, Type: "text", HideInUpdate: true},
+				{Key: "Hotkey", Label: "i18n:ui_result_bindings_hotkey", Tooltip: "i18n:ui_result_bindings_hotkey_tooltip", Width: 140, Type: "hotkey"},
+				{Key: "Alias", Label: "i18n:ui_result_bindings_alias", Tooltip: "i18n:ui_result_bindings_alias_tooltip", Width: 140, Type: "text"},
+			},
+		}},
+		// Group 2: hotkeys that only work while the Wox window is focused.
+		formDefinition{Type: "head", Value: formDefinitionValue{Content: "i18n:ui_hotkey_group_app"}},
+		formDefinition{Type: "label", Value: formDefinitionValue{Content: "i18n:ui_hotkey_group_app_tips"}},
+		formDefinition{Type: "table", Value: formDefinitionValue{
+			Key: "QueryHotkeysApp", Title: "i18n:ui_query_hotkeys_app_title", Tooltip: "i18n:ui_query_hotkeys_tips", SortColumnKey: "Query", InlineTable: true, UpdateDialogWidth: 700,
+			Columns: []formTableColumn{
+				{Key: "Name", Label: "i18n:ui_query_hotkeys_name", Tooltip: "i18n:ui_query_hotkeys_name_tooltip", Width: 130, Type: "text"},
+				{Key: "Hotkey", Label: "i18n:ui_query_hotkeys_hotkey", Tooltip: "i18n:ui_query_hotkeys_hotkey_tooltip", Width: 120, Type: "hotkey", Validators: []formValidator{{Type: "not_empty"}}},
+				{Key: "Query", Label: "i18n:ui_query_hotkeys_query", Tooltip: "i18n:ui_query_hotkeys_query_tooltip", Type: "queryHotkeyQuery", QueryTest: true, Validators: []formValidator{{Type: "not_empty"}}},
+				{Key: "ExposeLevel", Label: "i18n:ui_query_hotkeys_expose_level", Tooltip: "i18n:ui_query_hotkeys_expose_level_tooltip", Width: 110, Type: "select", SelectOptions: queryHotkeyExposeLevelOptions()},
+				{Key: "Position", Label: "i18n:ui_query_hotkeys_position", Tooltip: "i18n:ui_query_hotkeys_position_tooltip", Width: 120, Type: "select", HideInTable: true, SelectOptions: queryHotkeyPositionOptions()},
+				{Key: "HideQueryBox", Label: "i18n:ui_query_hotkeys_hide_query_box", Tooltip: "i18n:ui_query_hotkeys_hide_query_box_tooltip", Width: 80, Type: "checkbox", HideInTable: true},
+				{Key: "HideToolbar", Label: "i18n:ui_query_hotkeys_hide_toolbar", Tooltip: "i18n:ui_query_hotkeys_hide_toolbar_tooltip", Width: 80, Type: "checkbox", HideInTable: true},
+				{Key: "Width", Label: "i18n:ui_query_hotkeys_width", Tooltip: "i18n:ui_query_hotkeys_width_tooltip", Width: 50, Type: "text", HideInTable: true, EmptyAsZero: true, Validators: optionalIntegerValidators(false, 0, 0, "")},
+				{Key: "MaxResultCount", Label: "i18n:ui_query_hotkeys_max_result_count", Tooltip: "i18n:ui_query_hotkeys_max_result_count_tooltip", Width: 90, Type: "text", HideInTable: true, EmptyAsZero: true, Validators: optionalIntegerValidators(true, 5, 15, "i18n:ui_query_hotkeys_max_result_count_range_error")},
+				{Key: "IsSilentExecution", Label: "i18n:ui_query_hotkeys_silent", Tooltip: "i18n:ui_query_hotkeys_silent_tooltip", Width: 40, Type: "checkbox", HideInTable: true},
+				{Key: "Disabled", Label: "i18n:ui_disabled", Tooltip: "i18n:ui_disabled_tooltip", Width: 60, Type: "checkbox"},
+			},
+		}},
+	)
+	for _, builtin := range builtinHotkeyDefinitions() {
+		definitions = append(definitions, formDefinition{Type: "hotkey", Value: formDefinitionValue{
+			Key: builtinHotkeyPrefix + builtin.ID, Label: builtin.LabelKey, Tooltip: builtin.TooltipKey,
+		}})
+	}
+	// Group 3: hotkeys declared by enabled plugins, aggregated read-only.
+	// The values live in each plugin's settings page; this group only shows
+	// them together and offers a jump to the owning plugin.
+	if len(pluginHotkeys) > 0 {
+		definitions = append(definitions,
+			formDefinition{Type: "head", Value: formDefinitionValue{Content: "i18n:ui_hotkey_group_plugin"}},
+			formDefinition{Type: "label", Value: formDefinitionValue{Content: "i18n:ui_hotkey_group_plugin_tips"}},
+		)
+		for index, summary := range pluginHotkeys {
+			definitions = append(definitions, formDefinition{Type: "pluginHotkey", Value: formDefinitionValue{
+				Key: fmt.Sprintf("PluginHotkey.%s.%d", summary.PluginID, index), Label: summary.PluginName, Content: summary.Display, Tooltip: "i18n:ui_hotkey_plugin_open_tips",
+			}})
+		}
+	}
+	// Group 4: conflicts and exceptions.
+	definitions = append(definitions,
+		formDefinition{Type: "head", Value: formDefinitionValue{Content: "i18n:ui_hotkey_group_exception"}},
+		formDefinition{Type: "label", Value: formDefinitionValue{Content: "i18n:ui_hotkey_group_exception_tips"}},
+	)
 	if !data.IsLinuxWaylandSession {
 		definitions = append(definitions, formDefinition{Type: "table", Value: formDefinitionValue{
 			Key: "IgnoredHotkeyApps", Title: "i18n:ui_hotkey_ignore_apps", Tooltip: "i18n:ui_hotkey_ignore_apps_tips", MaxHeight: 220, InlineTable: true,
 			Columns: []formTableColumn{{Key: "App", Label: "i18n:ui_hotkey_ignore_apps_app", Tooltip: "i18n:ui_hotkey_ignore_apps_tips", Width: 420, Type: "app", Validators: []formValidator{{Type: "not_empty"}}}},
 		}})
 	}
-	definitions = append(definitions, formDefinition{Type: "table", Value: formDefinitionValue{
-		Key: "ResultBindings", Title: "i18n:ui_result_bindings", Tooltip: "i18n:ui_result_bindings_tips", SortColumnKey: "Title", InlineTable: true,
-		Columns: []formTableColumn{
-			{Key: "Title", Label: "i18n:ui_result_bindings_title", Tooltip: "i18n:ui_result_bindings_title_tooltip", Width: 220, Type: "text", HideInUpdate: true},
-			{Key: "Hotkey", Label: "i18n:ui_result_bindings_hotkey", Tooltip: "i18n:ui_result_bindings_hotkey_tooltip", Width: 140, Type: "hotkey"},
-			{Key: "Alias", Label: "i18n:ui_result_bindings_alias", Tooltip: "i18n:ui_result_bindings_alias_tooltip", Width: 140, Type: "text"},
-		},
-	}})
-	definitions = append(definitions, formDefinition{Type: "table", Value: formDefinitionValue{
-		Key: "QueryHotkeys", Title: "i18n:ui_query_hotkeys", Tooltip: "i18n:ui_query_hotkeys_tips", SortColumnKey: "Query", InlineTable: true, UpdateDialogWidth: 700,
-		Columns: []formTableColumn{
-			{Key: "Name", Label: "i18n:ui_query_hotkeys_name", Tooltip: "i18n:ui_query_hotkeys_name_tooltip", Width: 140, Type: "text"},
-			{Key: "Hotkey", Label: "i18n:ui_query_hotkeys_hotkey", Tooltip: "i18n:ui_query_hotkeys_hotkey_tooltip", Width: 120, Type: "hotkey", Validators: []formValidator{{Type: "not_empty"}}},
-			{Key: "Query", Label: "i18n:ui_query_hotkeys_query", Tooltip: "i18n:ui_query_hotkeys_query_tooltip", Type: "queryHotkeyQuery", QueryTest: true, Validators: []formValidator{{Type: "not_empty"}}},
-			{Key: "Position", Label: "i18n:ui_query_hotkeys_position", Tooltip: "i18n:ui_query_hotkeys_position_tooltip", Width: 120, Type: "select", HideInTable: true, SelectOptions: queryHotkeyPositionOptions()},
-			{Key: "HideQueryBox", Label: "i18n:ui_query_hotkeys_hide_query_box", Tooltip: "i18n:ui_query_hotkeys_hide_query_box_tooltip", Width: 80, Type: "checkbox", HideInTable: true},
-			{Key: "HideToolbar", Label: "i18n:ui_query_hotkeys_hide_toolbar", Tooltip: "i18n:ui_query_hotkeys_hide_toolbar_tooltip", Width: 80, Type: "checkbox", HideInTable: true},
-			{Key: "Width", Label: "i18n:ui_query_hotkeys_width", Tooltip: "i18n:ui_query_hotkeys_width_tooltip", Width: 50, Type: "text", HideInTable: true, EmptyAsZero: true, Validators: optionalIntegerValidators(false, 0, 0, "")},
-			{Key: "MaxResultCount", Label: "i18n:ui_query_hotkeys_max_result_count", Tooltip: "i18n:ui_query_hotkeys_max_result_count_tooltip", Width: 90, Type: "text", HideInTable: true, EmptyAsZero: true, Validators: optionalIntegerValidators(true, 5, 15, "i18n:ui_query_hotkeys_max_result_count_range_error")},
-			{Key: "IsSilentExecution", Label: "i18n:ui_query_hotkeys_silent", Tooltip: "i18n:ui_query_hotkeys_silent_tooltip", Width: 40, Type: "checkbox", HideInTable: true},
-			{Key: "Disabled", Label: "i18n:ui_disabled", Tooltip: "i18n:ui_disabled_tooltip", Width: 60, Type: "checkbox"},
-		},
-	}})
 	values := map[string]string{
-		"MainHotkey":        data.MainHotkey,
-		"SelectionHotkey":   data.SelectionHotkey,
-		"ActionPanelHotkey": data.ActionPanelHotkey,
-		"IgnoredHotkeyApps": settingsIgnoredHotkeyAppRowsJSON(data.IgnoredHotkeyApps),
-		"ResultBindings":    settingsRowsJSON(data.ResultBindings),
-		"QueryHotkeys":      settingsRowsJSON(data.QueryHotkeys),
+		"MainHotkey":         data.MainHotkey,
+		"SelectionHotkey":    data.SelectionHotkey,
+		"IgnoredHotkeyApps":  settingsIgnoredHotkeyAppRowsJSON(data.IgnoredHotkeyApps),
+		"ResultBindings":     settingsRowsJSON(data.ResultBindings),
+		"QueryHotkeysGlobal": settingsQueryHotkeysRowsJSON(data.QueryHotkeys, setting.QueryHotkeyExposeLevelGlobal),
+		"QueryHotkeysApp":    settingsQueryHotkeysRowsJSON(data.QueryHotkeys, setting.QueryHotkeyExposeLevelApp),
+	}
+	for _, builtin := range builtinHotkeyDefinitions() {
+		values[builtinHotkeyPrefix+builtin.ID] = builtinHotkeyForData(builtin.ID, data)
 	}
 	return newFormFieldsState(definitions, values, true)
 }
@@ -168,6 +254,92 @@ func settingsRowsJSON(value any) string {
 	return string(encoded)
 }
 
+// isQueryHotkeysTableKey reports whether a form table key is one of the two
+// split query-hotkey tables (global scope vs app-internal scope).
+func isQueryHotkeysTableKey(key string) bool {
+	return key == "QueryHotkeysGlobal" || key == "QueryHotkeysApp"
+}
+
+// queryHotkeyLevelForKey maps a split query-hotkey table key back to its
+// exposure level for the merge helper.
+func queryHotkeyLevelForKey(key string) string {
+	if key == "QueryHotkeysGlobal" {
+		return setting.QueryHotkeyExposeLevelGlobal
+	}
+	return setting.QueryHotkeyExposeLevelApp
+}
+
+// settingsQueryHotkeysRowsJSON serializes only the query hotkeys of one
+// exposure level so the Global and App tables stay split by scope.
+func settingsQueryHotkeysRowsJSON(items []queryHotkeySetting, level string) string {
+	filtered := make([]queryHotkeySetting, 0, len(items))
+	for _, item := range items {
+		if item.ExposeLevel == level {
+			filtered = append(filtered, item)
+		}
+	}
+	return settingsRowsJSON(filtered)
+}
+
+// applyQueryHotkeysLevelRows merges one exposure level's table rows back into
+// the shared list, replacing only rows of that level and keeping the other
+// level intact. Rows are pinned to the owning level so each table stays the
+// single source for its scope.
+func applyQueryHotkeysLevelRows(d *settingsData, raw json.RawMessage, level string) {
+	var rows []map[string]any
+	if err := json.Unmarshal(raw, &rows); err != nil {
+		return
+	}
+	kept := make([]queryHotkeySetting, 0, len(d.QueryHotkeys))
+	for _, item := range d.QueryHotkeys {
+		if item.ExposeLevel != level {
+			kept = append(kept, item)
+		}
+	}
+	added := make([]queryHotkeySetting, 0, len(rows))
+	for _, row := range rows {
+		item := queryHotkeySetting{
+			Name:              formTableRowString(row, "Name"),
+			Hotkey:            formTableRowString(row, "Hotkey"),
+			Query:             formTableRowString(row, "Query"),
+			IsSilentExecution: formTableRowBool(row, "IsSilentExecution"),
+			HideQueryBox:      formTableRowBool(row, "HideQueryBox"),
+			HideToolbar:       formTableRowBool(row, "HideToolbar"),
+			Width:             formTableRowInt(row, "Width"),
+			MaxResultCount:    formTableRowInt(row, "MaxResultCount"),
+			Position:          formTableRowString(row, "Position"),
+			ExposeLevel:       level,
+			Disabled:          formTableRowBool(row, "Disabled"),
+		}
+		added = append(added, item)
+	}
+	d.QueryHotkeys = append(kept, added...)
+}
+
+func formTableRowString(row map[string]any, key string) string {
+	if value, ok := row[key].(string); ok {
+		return value
+	}
+	return ""
+}
+
+func formTableRowBool(row map[string]any, key string) bool {
+	if value, ok := row[key].(bool); ok {
+		return value
+	}
+	return false
+}
+
+func formTableRowInt(row map[string]any, key string) int {
+	switch value := row[key].(type) {
+	case float64:
+		return int(value)
+	case int:
+		return value
+	}
+	return 0
+}
+
 func queryHotkeyPositionOptions() []formOption {
 	return []formOption{
 		{Label: "i18n:ui_query_position_system_default", Value: string(setting.QueryHotkeyPositionSystemDefault), Icon: fromCoreImage(icons.Get("position.system-default"))},
@@ -180,6 +352,15 @@ func queryHotkeyPositionOptions() []formOption {
 		{Label: "i18n:ui_query_position_bottom_left", Value: string(setting.QueryHotkeyPositionBottomLeft), Icon: fromCoreImage(icons.Get("position.bottom-left"))},
 		{Label: "i18n:ui_query_position_bottom_center", Value: string(setting.QueryHotkeyPositionBottomCenter), Icon: fromCoreImage(icons.Get("position.bottom-center"))},
 		{Label: "i18n:ui_query_position_bottom_right", Value: string(setting.QueryHotkeyPositionBottomRight), Icon: fromCoreImage(icons.Get("position.bottom-right"))},
+	}
+}
+
+// queryHotkeyExposeLevelOptions lists the exposure levels available when
+// binding a hotkey to a keyword: system-wide or app-internal.
+func queryHotkeyExposeLevelOptions() []formOption {
+	return []formOption{
+		{Label: "i18n:ui_query_hotkeys_expose_global", Value: setting.QueryHotkeyExposeLevelGlobal},
+		{Label: "i18n:ui_query_hotkeys_expose_app", Value: setting.QueryHotkeyExposeLevelApp},
 	}
 }
 
@@ -249,8 +430,34 @@ func (a *App) activateHotkeySettingsField() {
 	typeName := fields.definitions[index].Type
 	if typeName == "hotkey" {
 		a.recordHotkeySettingsField(index)
+	} else if typeName == "pluginHotkey" {
+		a.openPluginHotkeySettings(index)
 	} else if typeName == "table" {
 		a.openHotkeySettingsTable(index)
+	}
+}
+
+// openPluginHotkeySettings jumps from an aggregated plugin hotkey row to the
+// owning plugin's settings page and selects the plugin.
+func (a *App) openPluginHotkeySettings(index int) {
+	fields := a.hotkeySettings.Form()
+	if fields == nil || index < 0 || index >= len(fields.definitions) {
+		return
+	}
+	key := fields.definitions[index].Value.Key
+	raw := strings.TrimPrefix(key, "PluginHotkey.")
+	if raw == key {
+		return
+	}
+	// Key shape: PluginHotkey.<pluginID>.<fieldIndex>; strip the trailing index.
+	pluginID := raw[:strings.LastIndex(raw, ".")]
+	a.selectSettingTab("plugins")
+	for pluginIndex, plugin := range a.pluginSettings.Plugins() {
+		if plugin.ID == pluginID {
+			a.pluginSettings.SetSelected(pluginIndex)
+			a.setPluginSelectionLocked(pluginIndex)
+			break
+		}
 	}
 }
 
@@ -355,8 +562,10 @@ func (a *App) openTrayQueryEditor(rowIndex int) {
 func (a *App) applyHotkeySettingsRawLocked(key, value string) {
 	raw := json.RawMessage(append([]byte(nil), value...))
 	switch key {
-	case "QueryHotkeys":
-		a.generalSettings.Update(func(d *settingsData) { _ = json.Unmarshal(raw, &d.QueryHotkeys) })
+	case "QueryHotkeysGlobal":
+		a.generalSettings.Update(func(d *settingsData) { applyQueryHotkeysLevelRows(d, raw, setting.QueryHotkeyExposeLevelGlobal) })
+	case "QueryHotkeysApp":
+		a.generalSettings.Update(func(d *settingsData) { applyQueryHotkeysLevelRows(d, raw, setting.QueryHotkeyExposeLevelApp) })
 	case "ResultBindings":
 		a.generalSettings.Update(func(d *settingsData) { _ = json.Unmarshal(raw, &d.ResultBindings) })
 	case "IgnoredHotkeyApps":

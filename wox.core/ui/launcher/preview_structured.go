@@ -205,17 +205,16 @@ func (a *App) buildHotkeyOverviewPreview(data hotkeyOverviewPreviewData, palette
 	settingSource := a.translate("i18n:ui_hotkey_overview_source_setting")
 	builtinSource := a.translate("i18n:ui_hotkey_overview_source_builtin")
 	userSource := a.translate("i18n:ui_hotkey_overview_source_user")
+	launcherEntries := []previewview.HotkeyOverviewPreviewEntry{}
+	for _, builtin := range builtinHotkeyDefinitions() {
+		launcherEntries = append(launcherEntries, entry(a.builtinHotkeyForEffective(builtin.ID), a.translate(builtin.LabelKey), launcherScope, builtinSource, "", true))
+	}
 	sections := []previewview.HotkeyOverviewPreviewSection{
 		{Title: globalScope, Entries: []previewview.HotkeyOverviewPreviewEntry{
 			entry(settings.MainHotkey, a.translate("i18n:ui_hotkey_overview_open_wox"), globalScope, settingSource, "", true),
 			entry(settings.SelectionHotkey, a.translate("i18n:ui_hotkey_overview_search_selection"), globalScope, settingSource, "", true),
 		}},
-		{Title: launcherScope, Entries: []previewview.HotkeyOverviewPreviewEntry{
-			entry(primaryHotkey("p"), a.translate("i18n:ui_hotkey_overview_preview_toggle"), launcherScope, builtinSource, "", true),
-			entry(a.actionPanelHotkey(), a.translate("i18n:ui_hotkey_overview_more_actions"), launcherScope, settingSource, "", true),
-			entry(primaryHotkey("f"), a.translate("i18n:ui_hotkey_overview_filters"), launcherScope, builtinSource, "", true),
-			entry(primaryHotkey("u"), a.translate("i18n:ui_hotkey_overview_attention"), launcherScope, builtinSource, "", true),
-		}},
+		{Title: launcherScope, Entries: launcherEntries},
 		{Title: previewScope, Entries: []previewview.HotkeyOverviewPreviewEntry{
 			entry(primaryHotkey("b"), a.translate("i18n:ui_hotkey_overview_preview_fullscreen"), previewScope, builtinSource, "", true),
 			entry(primaryHotkey("shift+f"), a.translate("i18n:ui_hotkey_overview_preview_search"), previewScope, builtinSource, "", true),

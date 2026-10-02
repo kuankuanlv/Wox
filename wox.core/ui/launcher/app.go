@@ -1636,13 +1636,16 @@ func (a *App) onKey(event woxui.KeyEvent) bool {
 			return true
 		}
 	}
-	if event.Key == woxui.Key("f") && event.Modifiers.HasPrimary() && a.toggleRefinementBar() {
+	if hotkeyMatches(builtinHotkeyDefaultKey(builtinHotkeyFilter), event) && a.toggleRefinementBar() {
 		return true
 	}
-	if event.Key == woxui.Key("u") && event.Modifiers.HasPrimary() && a.activateAttentionUnread() {
+	if hotkeyMatches(builtinHotkeyDefaultKey(builtinHotkeyAttention), event) && a.activateAttentionUnread() {
 		return true
 	}
 	if a.onRefinementHotkey(event) {
+		return true
+	}
+	if a.onAppQueryHotkey(event) {
 		return true
 	}
 	if a.onResultActionHotkey(event) {
