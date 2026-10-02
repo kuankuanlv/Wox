@@ -499,7 +499,7 @@ func NewWoxSetting(store *WoxSettingStore) *WoxSetting {
 		CloudSyncServerUrl:                 NewLocalWoxSettingValue(store, "CloudSyncServerUrl", ""),
 		CloudSyncDisabledPlugins:           NewWoxSettingValue(store, "CloudSyncDisabledPlugins", []string{}),
 		EnableAutoBackup:                   NewWoxSettingValue(store, "EnableAutoBackup", true),
-		EnableAutoUpdate:                   NewWoxSettingValue(store, "EnableAutoUpdate", true),
+		EnableAutoUpdate:                   NewWoxSettingValue(store, "EnableAutoUpdate", false),
 		ReleaseChannel:                     NewWoxSettingValueWithValidator(store, "ReleaseChannel", ReleaseChannelStable, IsValidReleaseChannel),
 		LastWindowPosition:                 NewLocalWoxSettingValue(store, "LastWindowPosition", SavedWindowPosition{}),
 		LastWindowX:                        NewLocalWoxSettingValue(store, "LastWindowX", -1),

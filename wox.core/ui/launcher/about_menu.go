@@ -27,13 +27,13 @@ const (
 	aboutMenuGuideURL         = "https://www.woxlauncher.com/guide/introduction.html"
 	aboutMenuGuideURLZh       = "https://www.woxlauncher.com/zh/guide/introduction.html"
 	aboutMenuChangelogURL     = "https://github.com/Wox-launcher/Wox/releases"
-	aboutMenuGithubURL        = "https://github.com/Wox-launcher/Wox"
+	aboutMenuGithubURL        = "https://github.com/kuankuanlv/Wox"
 	aboutMenuRedditURL        = "https://www.reddit.com/r/WoxLauncher/"
 	aboutMenuDiscordURL       = "https://discord.gg/NnahFAwm3"
 
 	aboutMenuDefaultSettingsPath = "/"
 	aboutMenuGuideTail           = "woxlauncher.com"
-	aboutMenuGithubTail          = "Wox-Launcher/Wox"
+	aboutMenuGithubTail          = "kuankuanlv/Wox"
 	aboutMenuRedditTail          = "r/WoxLauncher"
 	// aboutMenuDiscordUserCount is the advertised Discord size. Raise it by hand as the community grows.
 	aboutMenuDiscordUserCount = 6
