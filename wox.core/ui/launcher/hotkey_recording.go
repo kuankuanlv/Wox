@@ -56,8 +56,14 @@ type recordedHotkeyPayload struct {
 // onKey, when set, is asked before a captured combo is stored.
 func (a *App) startHotkeyRecording(idPrefix string, target *formFieldsState, index int, persistKey string, allowedKinds []string, onKey func(woxui.KeyEvent) bool) {
 	// Action panel shortcuts are local key events, so global special triggers cannot fire them.
-	if persistKey == "ActionPanelHotkey" {
+	if persistKey == builtinHotkeyPrefix+builtinHotkeyActionPanel {
 		allowedKinds = []string{"normalCombo"}
+	}
+	// The main hotkey is registered with the OS as a system-wide hotkey; OS
+	// registration only supports plain combos (plus the Windows key on
+	// Windows), so hold/press modifiers are not offered for it.
+	if persistKey == "MainHotkey" && runtime.GOOS != "windows" {
+		allowedKinds = []string{"normalCombo", "doubleModifier", "capsLockCombo"}
 	}
 	if len(allowedKinds) == 0 {
 		allowedKinds = defaultHotkeyRecordingKinds

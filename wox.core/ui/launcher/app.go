@@ -1638,12 +1638,6 @@ func (a *App) onKey(event woxui.KeyEvent) bool {
 			return true
 		}
 	}
-	if hotkeyMatches(builtinHotkeyDefaultKey(builtinHotkeyFilter), event) && a.toggleRefinementBar() {
-		return true
-	}
-	if hotkeyMatches(builtinHotkeyDefaultKey(builtinHotkeyAttention), event) && a.activateAttentionUnread() {
-		return true
-	}
 	if a.onRefinementHotkey(event) {
 		return true
 	}

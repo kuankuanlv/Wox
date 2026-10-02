@@ -860,7 +860,7 @@ func inferQueryHotkeyPreset(values map[string]string) queryHotkeyPreset {
 // queryHotkeyFieldVisible keeps each preset limited to the fields shown by Flutter.
 func queryHotkeyFieldVisible(preset queryHotkeyPreset, key string, editing bool) bool {
 	switch key {
-	case "Name", "Hotkey", "Query", "ExposeLevel":
+	case "Name", "Hotkey", "Query":
 		return true
 	case "Position", "Width", "MaxResultCount":
 		return preset == queryHotkeyPresetWebPanel || preset == queryHotkeyPresetCustom

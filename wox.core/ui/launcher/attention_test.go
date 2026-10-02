@@ -2,7 +2,6 @@ package launcher
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	launcherview "wox/ui/launcher/view"
@@ -33,13 +32,12 @@ func TestUpdateAttentionUnreadCountStoresCount(t *testing.T) {
 	}
 }
 
-func TestAttentionUnreadTooltipUsesPlatformHotkey(t *testing.T) {
+func TestAttentionUnreadTooltipText(t *testing.T) {
 	app := &App{translations: map[string]string{
-		"ui_attention_unread_tooltip": "Attention items ({hotkey})",
+		"ui_attention_unread_tooltip": "Attention items",
 	}}
-	want := "Attention items (" + strings.Join(formatHotkeyLabels(primaryHotkey("u")), "+") + ")"
-	if got := app.attentionUnreadTooltip(); got != want {
-		t.Fatalf("attention tooltip = %q, want %q", got, want)
+	if got := app.attentionUnreadTooltip(); got != "Attention items" {
+		t.Fatalf("attention tooltip = %q, want plain translated text", got)
 	}
 }
 

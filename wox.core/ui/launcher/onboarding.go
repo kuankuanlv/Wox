@@ -672,13 +672,13 @@ func upsertOnboardingQueryHotkey(current []queryHotkeySetting, hotkey string) []
 		if strings.EqualFold(strings.TrimSpace(item.Query), "cb") {
 			items[index].Hotkey = hotkey
 			items[index].Disabled = false
-			items[index].ExposeLevel = setting.QueryHotkeyExposeLevelApp
+			items[index].ExposeLevel = setting.QueryHotkeyExposeLevelGlobal
 			updated = true
 			break
 		}
 	}
 	if !updated {
-		items = append(items, queryHotkeySetting{Hotkey: hotkey, Query: "cb ", ExposeLevel: setting.QueryHotkeyExposeLevelApp})
+		items = append(items, queryHotkeySetting{Hotkey: hotkey, Query: "cb ", ExposeLevel: setting.QueryHotkeyExposeLevelGlobal})
 	}
 	return items
 }

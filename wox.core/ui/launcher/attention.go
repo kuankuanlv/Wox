@@ -2,7 +2,6 @@ package launcher
 
 import (
 	"log"
-	"strings"
 
 	"wox/plugin"
 	launcherview "wox/ui/launcher/view"
@@ -24,8 +23,7 @@ func (a *App) buildAttentionUnread(unreadCount int, palette uiPalette, width flo
 }
 
 func (a *App) attentionUnreadTooltip() string {
-	hotkey := strings.Join(formatHotkeyLabels(builtinHotkeyDefaultKey(builtinHotkeyAttention)), "+")
-	return strings.ReplaceAll(a.translate("i18n:ui_attention_unread_tooltip"), "{hotkey}", hotkey)
+	return a.translate("i18n:ui_attention_unread_tooltip")
 }
 
 func (a *App) attentionEligibleLocked() bool {
@@ -52,7 +50,7 @@ func (a *App) setAttentionUnreadHover(inside bool, text string, anchor woxui.Rec
 	a.setNativeHoverTooltip(&a.attentionTooltipRevision, "go-ui-attention", "update attention tooltip", inside, text, anchor, "top", func() *woxui.Window { return a.window })
 }
 
-// activateAttentionUnread opens the Attention inbox from the query-box badge or primary+U.
+// activateAttentionUnread opens the Attention inbox from the query-box badge.
 // It returns false when the badge is hidden so the hotkey is left for other handlers, like refinements.
 func (a *App) activateAttentionUnread() bool {
 	if !a.attentionEligibleLocked() {

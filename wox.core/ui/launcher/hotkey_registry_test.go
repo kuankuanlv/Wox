@@ -10,8 +10,8 @@ import (
 
 func TestBuiltinHotkeyDefinitions(t *testing.T) {
 	definitions := builtinHotkeyDefinitions()
-	if len(definitions) != 4 {
-		t.Fatalf("built-in hotkey registry = %d entries, want 4 (about/filter/attention/settings)", len(definitions))
+	if len(definitions) != 3 {
+		t.Fatalf("built-in hotkey registry = %d entries, want 3 (about/actionPanel/settings)", len(definitions))
 	}
 	seen := map[string]bool{}
 	for _, def := range definitions {
@@ -30,16 +30,14 @@ func TestBuiltinHotkeyDefinitions(t *testing.T) {
 
 func TestBuiltinHotkeyDefaultKeys(t *testing.T) {
 	wantDarwin := map[string]string{
-		builtinHotkeyAbout:     "command+shift+k",
-		builtinHotkeyFilter:    "command+f",
-		builtinHotkeyAttention: "command+u",
-		builtinHotkeySettings:  "command+,",
+		builtinHotkeyAbout:       "command+shift+k",
+		builtinHotkeyActionPanel: "command+k",
+		builtinHotkeySettings:    "command+,",
 	}
 	wantOther := map[string]string{
-		builtinHotkeyAbout:     "control+shift+k",
-		builtinHotkeyFilter:    "control+f",
-		builtinHotkeyAttention: "control+u",
-		builtinHotkeySettings:  "control+,",
+		builtinHotkeyAbout:       "control+shift+k",
+		builtinHotkeyActionPanel: "control+k",
+		builtinHotkeySettings:    "control+,",
 	}
 	want := wantOther
 	if runtime.GOOS == "darwin" {
@@ -64,30 +62,27 @@ func TestBuiltinHotkeyOverrideAndFallback(t *testing.T) {
 	if got := builtinHotkeyFor(builtinHotkeySettings, overrides); got != builtinHotkeyDefaultKey(builtinHotkeySettings) {
 		t.Fatalf("blank override should fall back to default, got %q", got)
 	}
-	if got := builtinHotkeyFor(builtinHotkeyFilter, overrides); got != builtinHotkeyDefaultKey(builtinHotkeyFilter) {
-		t.Fatalf("missing override should fall back to default, got %q", got)
-	}
 }
 
-func TestMatchesBuiltinHotkey(t *testing.T) {
+func TestMatchesBuiltinHotkeyOverrideAndIME(t *testing.T) {
 	primary := woxui.KeyModifierControl
 	if runtime.GOOS == "darwin" {
 		primary = woxui.KeyModifierMeta
 	}
-	overrides := map[string]string{builtinHotkeyFilter: "command+g"}
+	overrides := map[string]string{builtinHotkeyActionPanel: "command+o"}
 	if runtime.GOOS != "darwin" {
-		overrides[builtinHotkeyFilter] = "control+g"
+		overrides[builtinHotkeyActionPanel] = "control+o"
 	}
-	if !matchesBuiltinHotkey(builtinHotkeyFilter, overrides, woxui.KeyEvent{Key: "g", Modifiers: primary, Down: true}) {
-		t.Fatal("custom filter hotkey should match the overridden key")
+	if !matchesBuiltinHotkey(builtinHotkeyActionPanel, overrides, woxui.KeyEvent{Key: "o", Modifiers: primary, Down: true}) {
+		t.Fatal("custom actionPanel hotkey should match the overridden key")
 	}
-	if matchesBuiltinHotkey(builtinHotkeyFilter, overrides, woxui.KeyEvent{Key: "f", Modifiers: primary, Down: true}) {
+	if matchesBuiltinHotkey(builtinHotkeyActionPanel, overrides, woxui.KeyEvent{Key: "k", Modifiers: primary, Down: true}) {
 		t.Fatal("old default key must stop matching after override")
 	}
-	if matchesBuiltinHotkey(builtinHotkeyFilter, overrides, woxui.KeyEvent{Key: "g", Modifiers: primary, Down: true, Composing: true}) {
+	if matchesBuiltinHotkey(builtinHotkeyActionPanel, overrides, woxui.KeyEvent{Key: "o", Modifiers: primary, Down: true, Composing: true}) {
 		t.Fatal("IME composition must not match built-in hotkeys")
 	}
-	if matchesBuiltinHotkey(builtinHotkeyFilter, nil, woxui.KeyEvent{Key: "g", Modifiers: primary, Down: true}) {
+	if matchesBuiltinHotkey(builtinHotkeyActionPanel, nil, woxui.KeyEvent{Key: "o", Modifiers: primary, Down: true}) {
 		t.Fatal("no override: wrong key must not match the default")
 	}
 }

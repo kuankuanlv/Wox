@@ -20,13 +20,6 @@ const (
 	builtinHotkeyAbout       = "about"
 	builtinHotkeySettings    = "settings"
 	builtinHotkeyActionPanel = "actionPanel"
-
-	// Conditional built-ins that never occupy a configurable fixed slot.
-	// filter depends on plugin-provided refinement options and attention
-	// belongs to the Attention inbox plugin; both dispatch on their platform
-	// default and are resolved via builtinHotkeyDefaultKey only.
-	builtinHotkeyFilter    = "filter"
-	builtinHotkeyAttention = "attention"
 )
 
 // builtinHotkeyAction is one registry entry. DefaultKey is the macOS form and
@@ -49,28 +42,15 @@ var builtinHotkeyDefinitionsList = []builtinHotkeyAction{
 	{ID: builtinHotkeySettings, LabelKey: "i18n:ui_hotkey_overview_settings", TooltipKey: "i18n:ui_builtin_hotkey_settings_tips", DefaultKey: "command+,", AltKey: "control+,"},
 }
 
-// conditionalBuiltinHotkeys back builtinHotkeyDefaultKey for the conditional
-// built-ins while keeping them out of the settings form and overview.
-var conditionalBuiltinHotkeys = []builtinHotkeyAction{
-	{ID: builtinHotkeyFilter, LabelKey: "i18n:ui_hotkey_overview_filters", TooltipKey: "i18n:ui_builtin_hotkey_filter_tips", DefaultKey: "command+f", AltKey: "control+f"},
-	{ID: builtinHotkeyAttention, LabelKey: "i18n:ui_hotkey_overview_attention", TooltipKey: "i18n:ui_builtin_hotkey_attention_tips", DefaultKey: "command+u", AltKey: "control+u"},
-}
-
 // builtinHotkeyDefinitions returns a copy of the registry for form/overview
 // iteration, keeping the canonical list immutable.
 func builtinHotkeyDefinitions() []builtinHotkeyAction {
 	return append([]builtinHotkeyAction(nil), builtinHotkeyDefinitionsList...)
 }
 
-// builtinHotkeyDefinition looks up one registry entry, falling back to the
-// conditional built-ins so dispatch can resolve their platform defaults.
+// builtinHotkeyDefinition looks up one registry entry.
 func builtinHotkeyDefinition(id string) (builtinHotkeyAction, bool) {
 	for _, def := range builtinHotkeyDefinitionsList {
-		if def.ID == id {
-			return def, true
-		}
-	}
-	for _, def := range conditionalBuiltinHotkeys {
 		if def.ID == id {
 			return def, true
 		}

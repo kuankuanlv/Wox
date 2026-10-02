@@ -56,14 +56,9 @@ func (a *App) refinementViewProps(snapshot viewSnapshot, width, height, imageSca
 	}
 }
 
-// refinementToggleTooltip advertises the same Ctrl/Cmd+F shortcut the launcher binds to the filter bar.
+// refinementToggleTooltip describes the filter bar toggle shown on the launcher accessory.
 func (a *App) refinementToggleTooltip() string {
-	hotkey := strings.Join(formatHotkeyLabels(builtinHotkeyDefaultKey(builtinHotkeyFilter)), "+")
-	text := a.translate("i18n:ui_query_refinement_filters_tooltip")
-	if strings.HasPrefix(text, "ui query refinement") || text == "" {
-		text = "Filter search results ({hotkey})"
-	}
-	return strings.ReplaceAll(text, "{hotkey}", hotkey)
+	return a.translate("i18n:ui_query_refinement_filters_tooltip")
 }
 
 // setRefinementTooltip anchors filter-button help to the launcher query accessory.

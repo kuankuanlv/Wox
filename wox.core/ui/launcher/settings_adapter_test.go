@@ -168,7 +168,7 @@ func TestHotkeySettingsTablesKeepFlutterOuterGap(t *testing.T) {
 		callback()
 		return nil
 	}
-	form := newHotkeySettingsForm(settingsData{MainHotkey: "Alt+Space", SelectionHotkey: "Alt+Shift+Space", IsLinuxWaylandSession: false})
+	form := newHotkeySettingsForm(settingsData{MainHotkey: "Alt+Space", SelectionHotkey: "Alt+Shift+Space", IsLinuxWaylandSession: false}, nil)
 	app.hotkeySettings.SetForm(&form)
 
 	page := app.buildSettingsPage(settingsSnapshot{tab: "hotkey", hotkey: app.hotkeySettings.Snapshot(), palette: settingsPalette()}, nil, 800, 600, 1)
@@ -194,8 +194,8 @@ func TestHotkeySettingsTablesKeepFlutterOuterGap(t *testing.T) {
 		tableSpacers++
 		lastTableSpacer = spacer
 	}
-	if tableSpacers != 3 {
-		t.Fatalf("hotkey table spacers = %d, want IgnoredHotkeyApps, ResultBindings, QueryHotkeys", tableSpacers)
+	if tableSpacers != 4 {
+		t.Fatalf("hotkey table spacers = %d, want IgnoredHotkeyApps, ResultBindings, QueryHotkeysGlobal, QueryHotkeysApp (plugin group renders as empty state without a table when no plugin declares hotkeys)", tableSpacers)
 	}
 	if lastTableSpacer.Padding.Bottom != 24 {
 		t.Fatalf("last table outer bottom gap = %v, want Flutter's 24px", lastTableSpacer.Padding.Bottom)
