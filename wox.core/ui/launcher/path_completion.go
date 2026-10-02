@@ -48,10 +48,11 @@ func (a *App) completePathTab() bool {
 // case-insensitive (macOS default filesystem behaviour); hidden children are
 // matched only when the typed base itself starts with ".".
 func firstPathChildCompletion(text string) (string, bool) {
-	displayPrefix := text
 	absolutePrefix := text
+	var home string
 	if strings.HasPrefix(text, "~/") {
-		home, err := os.UserHomeDir()
+		var err error
+		home, err = os.UserHomeDir()
 		if err != nil {
 			return "", false
 		}
@@ -82,20 +83,27 @@ func firstPathChildCompletion(text string) (string, bool) {
 		if !strings.HasPrefix(base, ".") && strings.HasPrefix(name, ".") {
 			continue
 		}
-		display := name
+		completed := filepath.Join(dir, name)
 		isDir := entry.IsDir()
 		if !isDir && entry.Type()&os.ModeSymlink != 0 {
 			// Follow symlinks (e.g. /tmp -> /private/tmp on macOS) so a link
 			// to a directory completes with a trailing "/" and the next Tab
 			// can descend into it.
-			if info, err := os.Stat(filepath.Join(dir, name)); err == nil {
+			if info, err := os.Stat(completed); err == nil {
 				isDir = info.IsDir()
 			}
 		}
 		if isDir {
-			display += "/"
+			completed += "/"
 		}
-		return displayPrefix + display[len(base):], true
+		if strings.HasPrefix(text, "~/") {
+			// Map the real child back under the "~" shorthand instead of
+			// echoing the user's typed casing (e.g. /TM -> /tmp/).
+			if rel, err := filepath.Rel(home, completed); err == nil {
+				completed = filepath.Join("~", rel)
+			}
+		}
+		return completed, true
 	}
 	return "", false
 }
