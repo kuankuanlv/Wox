@@ -719,6 +719,14 @@ func (a *App) closeSettings() error {
 }
 
 func (a *App) onSettingsKey(event woxui.KeyEvent) bool {
+	if matchesBuiltinHotkey(builtinHotkeyCloseWindow, a.builtinHotkeyOverrides(), event) {
+		if !event.Repeat {
+			if err := a.closeSettings(); err != nil {
+				log.Printf("close settings window from hotkey: %v", err)
+			}
+		}
+		return true
+	}
 	if a.onPrivacySettingsKey(event) {
 		return true
 	}

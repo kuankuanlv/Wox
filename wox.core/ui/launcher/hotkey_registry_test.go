@@ -10,8 +10,8 @@ import (
 
 func TestBuiltinHotkeyDefinitions(t *testing.T) {
 	definitions := builtinHotkeyDefinitions()
-	if len(definitions) != 3 {
-		t.Fatalf("built-in hotkey registry = %d entries, want 3 (about/actionPanel/settings)", len(definitions))
+	if len(definitions) != 5 {
+		t.Fatalf("built-in hotkey registry = %d entries, want 5 (about/actionPanel/settings/quit/closeWindow)", len(definitions))
 	}
 	seen := map[string]bool{}
 	for _, def := range definitions {

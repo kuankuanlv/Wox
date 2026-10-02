@@ -425,6 +425,15 @@ func (a *App) onActionKey(event woxui.KeyEvent) bool {
 		a.quitApp()
 		return true
 	}
+	if matchesBuiltinHotkey(builtinHotkeyCloseWindow, a.builtinHotkeyOverrides(), event) {
+		if event.Repeat {
+			return true
+		}
+		if err := a.hideWindow(false); err != nil {
+			log.Printf("close launcher window from hotkey: %v", err)
+		}
+		return true
+	}
 	if matchesBuiltinHotkeyEffective(a, builtinHotkeyActionPanel, event) {
 		if event.Repeat {
 			return true

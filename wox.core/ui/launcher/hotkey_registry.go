@@ -21,6 +21,7 @@ const (
 	builtinHotkeySettings    = "settings"
 	builtinHotkeyActionPanel = "actionPanel"
 	builtinHotkeyQuit        = "quit"
+	builtinHotkeyCloseWindow = "closeWindow"
 )
 
 // builtinHotkeyAction is one registry entry. DefaultKey is the macOS form and
@@ -42,6 +43,7 @@ var builtinHotkeyDefinitionsList = []builtinHotkeyAction{
 	{ID: builtinHotkeyActionPanel, LabelKey: "i18n:ui_action_panel_hotkey", TooltipKey: "i18n:ui_action_panel_hotkey_tips", DefaultKey: "command+k", AltKey: "control+k"},
 	{ID: builtinHotkeySettings, LabelKey: "i18n:ui_hotkey_overview_settings", TooltipKey: "i18n:ui_builtin_hotkey_settings_tips", DefaultKey: "command+,", AltKey: "control+,"},
 	{ID: builtinHotkeyQuit, LabelKey: "i18n:ui_hotkey_overview_quit", TooltipKey: "i18n:ui_builtin_hotkey_quit_tips", DefaultKey: "command+q", AltKey: "control+q"},
+	{ID: builtinHotkeyCloseWindow, LabelKey: "i18n:ui_hotkey_overview_close_window", TooltipKey: "i18n:ui_builtin_hotkey_close_window_tips", DefaultKey: "command+w", AltKey: "control+w"},
 }
 
 // builtinHotkeyDefinitions returns a copy of the registry for form/overview
