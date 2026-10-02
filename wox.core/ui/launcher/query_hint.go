@@ -448,6 +448,12 @@ func (a *App) onQueryHintKey(event woxui.KeyEvent) bool {
 		a.applyQuerySnapshot(snapshot)
 		return true
 	}
+	// Path input owns Tab: let the caller's Tab branch run path-level
+	// completion instead of query-hint completion, so a directory always
+	// completes with a trailing "/".
+	if event.Key == woxui.KeyTab && event.Modifiers == 0 && isPathInput(a.editor.State().Text) {
+		return false
+	}
 	hint := a.query.QueryHint
 	if hint == nil {
 		if s.candidate != nil && event.Key == woxui.KeyTab && event.Modifiers == 0 {
