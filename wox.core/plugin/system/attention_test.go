@@ -70,6 +70,7 @@ func (a *attentionActionTestAPI) OnDragOut(ctx context.Context, option plugin.Dr
 }
 func (a *attentionActionTestAPI) RegisterQueryCommands(ctx context.Context, commands []plugin.MetadataCommand) {
 }
+func (a *attentionActionTestAPI) RegisterInputFilter(ctx context.Context, filter plugin.MetadataInputFilter) {}
 func (a *attentionActionTestAPI) AIChatStream(ctx context.Context, model common.Model, conversations []common.Conversation, options common.ChatOptions, callback common.ChatStreamFunc) error {
 	return nil
 }

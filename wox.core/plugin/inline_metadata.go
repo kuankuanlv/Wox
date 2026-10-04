@@ -173,7 +173,7 @@ func (m *Manager) ParseSingleFilePluginMetadata(ctx context.Context, filePath st
 	return validateSingleFilePluginMetadata(ctx, filePath, parsed)
 }
 
-func validateSingleFilePluginMetadata(_ context.Context, filePath string, parsed inlineMetadataResult) (Metadata, error) {
+func validateSingleFilePluginMetadata(ctx context.Context, filePath string, parsed inlineMetadataResult) (Metadata, error) {
 
 	if parsed.hasKey("Entry") {
 		return Metadata{}, fmt.Errorf("single-file plugin metadata must not declare Entry")
@@ -201,9 +201,11 @@ func validateSingleFilePluginMetadata(_ context.Context, filePath string, parsed
 	if !parsed.hasKey("Runtime") || strings.TrimSpace(metadata.Runtime) == "" {
 		return Metadata{}, fmt.Errorf("missing required field: Runtime")
 	}
-	if len(metadata.TriggerKeywords) == 0 {
-		return Metadata{}, fmt.Errorf("missing required field: TriggerKeywords")
-	}
+	// TriggerKeywords may be empty: a single-file plugin can register every
+	// keyword at runtime (register_trigger_keyword) in init, keeping the
+	// user-facing keyword list free of a default entry the author never
+	// intended. Previously an empty list failed metadata parsing and the
+	// plugin never loaded.
 
 	expectedRuntime, err := singleFileRuntimeForPath(filePath)
 	if err != nil {
@@ -223,6 +225,12 @@ func validateSingleFilePluginMetadata(_ context.Context, filePath string, parsed
 
 	metadata.Entry = filepath.Base(filePath)
 	metadata.Directory = util.GetLocation().GetUserSingleFilePluginsDirectory()
+
+	// Single-file plugins bypass ParseMetadata, so run the kuankuanlv extension
+	// normalization/validation here too. It never rejects loading: invalid
+	// bindings (e.g. a "*" plugin with a parameter hint, or a non-wildcard
+	// filter) are dropped to zero and warned instead.
+	_ = metadata.ValidateKuankuanlvExtensions(ctx)
 	return metadata, nil
 }
 

@@ -106,6 +106,7 @@ func (m *mockAPI) OnDragOut(ctx context.Context, option plugin.DragOutListenOpti
 	return plugin.DragOutListenResult{}
 }
 func (m *mockAPI) RegisterQueryCommands(ctx context.Context, commands []plugin.MetadataCommand) {}
+func (m *mockAPI) RegisterInputFilter(ctx context.Context, filter plugin.MetadataInputFilter) {}
 func (m *mockAPI) AIChatStream(ctx context.Context, model common.Model, conversations []common.Conversation, options common.ChatOptions, callback common.ChatStreamFunc) error {
 	return nil
 }

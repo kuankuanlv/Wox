@@ -118,6 +118,7 @@ func (emptyChatAPI) OnDragOut(context.Context, plugin.DragOutListenOption) plugi
 }
 func (emptyChatAPI) RegisterQueryCommands(context.Context, []plugin.MetadataCommand) {
 }
+func (emptyChatAPI) RegisterInputFilter(context.Context, plugin.MetadataInputFilter) {}
 func (emptyChatAPI) AIChatStream(context.Context, common.Model, []common.Conversation, common.ChatOptions, common.ChatStreamFunc) error {
 	return nil
 }

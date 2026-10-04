@@ -72,6 +72,7 @@ func (s *stubAPI) OnDragOut(ctx context.Context, option plugin.DragOutListenOpti
 }
 
 func (s *stubAPI) RegisterQueryCommands(ctx context.Context, commands []plugin.MetadataCommand) {}
+func (s *stubAPI) RegisterInputFilter(ctx context.Context, filter plugin.MetadataInputFilter) {}
 
 func (s *stubAPI) AIChatStream(ctx context.Context, model common.Model, conversations []common.Conversation, options common.ChatOptions, callback common.ChatStreamFunc) error {
 	return nil

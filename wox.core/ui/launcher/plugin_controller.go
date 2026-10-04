@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"wox/plugin"
 	"wox/ui/contract"
 	woxui "wox/ui/runtime"
 )
@@ -392,6 +393,12 @@ func pluginSettingsPluginsFromContract(items []contract.PluginCatalogItem) ([]pl
 			Commands: commands, SupportedOS: append([]string(nil), item.SupportedOS...), Features: features, Glances: glances,
 			IsSystem: item.IsSystem, IsDev: item.IsDev, IsInstalled: item.IsInstalled, IsDisable: item.IsDisable, IsUpgradable: item.IsUpgradable,
 			SettingDefinitions: definitions,
+			KuankuanlvSchemaVersion:       item.KuankuanlvSchemaVersion,
+			KuankuanlvInputFilter:         item.KuankuanlvInputFilter,
+			KuankuanlvParameterHint:        item.KuankuanlvParameterHint,
+			KuankuanlvInputDescription:     item.KuankuanlvInputDescription,
+			KuankuanlvOutputDescription:    item.KuankuanlvOutputDescription,
+			KuankuanlvActions:              append([]plugin.MetadataAction(nil), item.KuankuanlvActions...),
 			Setting: pluginSettingsData{
 				Disabled: item.Setting.Disabled, TriggerKeywords: append([]string(nil), item.Setting.TriggerKeywords...), Settings: cloneStringMap(item.Setting.Settings),
 			},

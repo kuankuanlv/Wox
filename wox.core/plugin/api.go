@@ -131,6 +131,10 @@ type API interface {
 	// own source should remove those files when Status is success.
 	OnDragOut(ctx context.Context, option DragOutListenOption) DragOutListenResult
 	RegisterQueryCommands(ctx context.Context, commands []MetadataCommand)
+	// RegisterInputFilter installs or replaces the runtime input admission filter
+	// for this plugin. It only affects wildcard ("*") plugins. A nil filter clears
+	// the runtime override and falls back to the metadata-declared filter.
+	RegisterInputFilter(ctx context.Context, filter MetadataInputFilter)
 	// RegisterTriggerKeyword returns Success=false for invalid keywords or keywords owned by another enabled plugin.
 	// Re-registering this plugin's own keyword succeeds without adding a duplicate.
 	RegisterTriggerKeyword(ctx context.Context, option RegisterTriggerKeywordOption) RegisterTriggerKeywordResult
@@ -576,6 +580,10 @@ func (a *APIImpl) OnDragOut(ctx context.Context, option DragOutListenOption) Dra
 
 func (a *APIImpl) RegisterQueryCommands(ctx context.Context, commands []MetadataCommand) {
 	a.pluginInstance.RuntimeQueryCommands = append([]MetadataCommand(nil), commands...)
+}
+
+func (a *APIImpl) RegisterInputFilter(ctx context.Context, filter MetadataInputFilter) {
+	a.pluginInstance.RegisterInputFilter(&filter)
 }
 
 func (a *APIImpl) RegisterTriggerKeyword(ctx context.Context, option RegisterTriggerKeywordOption) RegisterTriggerKeywordResult {

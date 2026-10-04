@@ -139,6 +139,29 @@ export interface MetadataCommand {
 }
 
 /**
+ * A runtime input admission filter for a wildcard ("*") plugin.
+ *
+ * A plugin that registers the global "*" trigger keyword would otherwise
+ * receive every eligible query. The filter gates which input reaches it.
+ * The field names (mode/items/pattern) match Wox core's MetadataInputFilter
+ * JSON tags exactly.
+ *
+ * @example
+ * ```typescript
+ * await api.RegisterInputFilter(ctx, { mode: "list", items: ["open", "close"] })
+ * await api.RegisterInputFilter(ctx, { mode: "regex", pattern: "^cli (add|del)$" })
+ * ```
+ */
+export interface MetadataInputFilter {
+  /** Admission mode: "list" (prefix-match items) or "regex" (match pattern). */
+  mode: string
+  /** Sub-command names admitted in list mode. */
+  items?: string[]
+  /** Regular expression admitted in regex mode. */
+  pattern?: string
+}
+
+/**
  * A setting requirement that must pass before Wox runs a plugin query.
  *
  * Query requirements are evaluated by Wox core before calling `query()`. Use

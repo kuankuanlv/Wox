@@ -87,7 +87,11 @@ func (a *App) pluginListEntries(snapshot settingsSnapshot, filtered []filteredPl
 			badge = a.translate("i18n:ui_setting_plugin_system_tag")
 		} else if plugin.IsDev {
 			badge = a.translate("i18n:ui_plugin_dev_tag")
-		} else if strings.EqualFold(plugin.Runtime, "script") {
+		} else if !strings.EqualFold(plugin.Runtime, "go") {
+			// Treat every non-Go runtime (script, python, …) uniformly as a
+			// script plugin; only the badge differs from the previous
+			// script-only check so e.g. single-file python plugins are tagged
+			// the same way.
 			badge = a.translate("i18n:ui_setting_plugin_script_tag")
 		}
 		itemIndex := visibleIndex
@@ -195,6 +199,9 @@ func (a *App) pluginDetailProps(snapshot settingsSnapshot, width, height, imageS
 	editor.DescriptionDetail = a.pluginStoreDetailProps(snapshot, plugin, width, imageScale)
 	metadata := a.pluginMetadataProps(plugin, "privacy")
 	editor.Metadata = &metadata
+	if extension := a.pluginKuankuanlvSectionProps(plugin); extension != nil {
+		editor.Extension = extension
+	}
 	keywordDefinition := form.definitions[0]
 	innerWidth := max(float32(0), width-32)
 	keywordTable := a.formTableFieldProps(form.formFieldsSnapshot, callbacks, snapshot.palette, 0, keywordDefinition, innerWidth, 0)
@@ -476,6 +483,41 @@ func (a *App) runPluginCommandQueryTest(triggerKeywords []string, command string
 	if queryText := pluginCommandQueryText(triggerKeywords, command); queryText != "" {
 		a.runLauncherQueryTest(newInputQuery(queryText))
 	}
+}
+
+// pluginKuankuanlvSectionProps builds the read-only kuankuanlv extension info
+// block for installed plugins. It returns nil for upstream (extension-less)
+// plugins so the area renders nothing instead of an empty shell. Editable
+// fields (input filter / action combos) are injected into the settings form
+// separately; this block only carries author-declared read-only copy.
+func (a *App) pluginKuankuanlvSectionProps(plugin pluginSettingsPlugin) *launcherview.PluginMetadataProps {
+	if !kuankuanlvHasExtension(plugin) {
+		return nil
+	}
+	props := &launcherview.PluginMetadataProps{Header: kuankuanlvSectionHeader}
+	version := plugin.KuankuanlvSchemaVersion
+	if version <= 0 {
+		version = 1
+	}
+	props.Items = append(props.Items, launcherview.PluginMetadataItem{
+		Title: kuankuanlvRowSchemaVersion, Description: fmt.Sprintf("v%d", version),
+	})
+	if value := strings.TrimSpace(plugin.KuankuanlvParameterHint); value != "" {
+		props.Items = append(props.Items, launcherview.PluginMetadataItem{
+			Title: kuankuanlvRowParameterHint, Description: value,
+		})
+	}
+	if value := strings.TrimSpace(plugin.KuankuanlvInputDescription); value != "" {
+		props.Items = append(props.Items, launcherview.PluginMetadataItem{
+			Title: kuankuanlvRowInputDesc, Description: value,
+		})
+	}
+	if value := strings.TrimSpace(plugin.KuankuanlvOutputDescription); value != "" {
+		props.Items = append(props.Items, launcherview.PluginMetadataItem{
+			Title: kuankuanlvRowOutputDesc, Description: value,
+		})
+	}
+	return props
 }
 
 // pluginMetadataProps restores Flutter's non-editing plugin detail tabs from core metadata.

@@ -54,7 +54,9 @@ const (
 	previewDataMaxSize           = 1024
 	maxCachedQueriesPerSession   = 32
 	globalQueryPluginScoreLimit  = 200
+	keywordMatchBoost            = 50000
 	fileSearchPluginID           = "979d6363-025a-4f51-88d3-0b04e9dc56bf"
+
 )
 
 type debounceTimer struct {
@@ -1128,6 +1130,11 @@ func (m *Manager) ParseMetadata(ctx context.Context, pluginDirectory string) (Me
 	metadata.Directory = pluginDirectory
 	metadata.LoadPluginI18nFromDirectory(ctx)
 
+	// kuankuanlv fork extension validation: loose binding. Invalid combinations
+	// are ignored (field reset) + warned, never reject plugin loading. The error
+	// is intentionally discarded because this method never blocks on extensions.
+	_ = metadata.ValidateKuankuanlvExtensions(ctx)
+
 	return metadata, nil
 }
 
@@ -1363,13 +1370,30 @@ func (m *Manager) canOperateQuery(ctx context.Context, pluginInstance *Instance,
 		return pluginInstance.Metadata.IsSupportFeature(MetadataFeatureQuerySelection)
 	}
 
-	var validGlobalQuery = lo.Contains(pluginInstance.GetTriggerKeywords(), "*") && query.TriggerKeyword == ""
-	var validNonGlobalQuery = lo.Contains(pluginInstance.GetTriggerKeywords(), query.TriggerKeyword)
-	if !validGlobalQuery && !validNonGlobalQuery {
-		return false
+	// A bare trigger keyword (no trailing space) still lets global "*" plugins
+	// respond, mixing keyword candidates with global search; a space-separated
+	// parameter query stays keyword-exclusive. Whether a plugin registers "*"
+	// is its own decision.
+	keywords := pluginInstance.GetTriggerKeywords()
+	if lo.Contains(keywords, "*") {
+		// The raw input is the search term for global "*" plugins (app search,
+		// web search, …); relevance is enforced inside each plugin (e.g. app
+		// search matches display name + bundle id only).
+		if query.TriggerKeyword != "" && strings.Contains(query.RawQuery, " ") {
+			// A space-separated parameter query stays keyword-exclusive, so the
+			// wildcard channel must not participate here.
+			return false
+		}
+		// Kuankuanlv admission: an effective input filter (metadata-declared or
+		// runtime-registered) gates whether this "*" plugin receives the query.
+		// A nil filter admits every input, preserving upstream behavior.
+		return pluginInstance.kuankuanlvInputFilterAdmits(query.RawQuery)
+	}
+	if query.TriggerKeyword != "" && matchTriggerKeyword(keywords, query.TriggerKeyword) {
+		return true
 	}
 
-	return true
+	return false
 }
 
 // applyScopeForPlugin returns a per-plugin query copy with Command/TriggerKeyword from Scope.
@@ -1451,6 +1475,14 @@ func (m *Manager) mergeQueryLayouts(metadataLayout QueryLayout, responseLayout Q
 
 func (m *Manager) queryForPlugin(ctx context.Context, pluginInstance *Instance, query Query) (response QueryResponse) {
 	query = m.applyScopeForPlugin(query, pluginInstance)
+	// A bare keyword query carries no search term for the owner plugin, but a
+	// global "*" plugin (e.g. app search) must still search with the full raw
+	// input. Otherwise it receives an empty pattern and returns its entire
+	// catalog, drowning the keyword results in noise.
+	if query.TriggerKeyword != "" && query.Search == "" && !query.HasScope() &&
+		lo.Contains(pluginInstance.GetTriggerKeywords(), "*") {
+		query.Search = query.RawQuery
+	}
 	pluginLabel := queryDiagnosticPluginLabel(pluginInstance)
 	queryForPluginStart := util.GetSystemTimestamp()
 	queryForPluginTimingStart := time.Now()
@@ -1513,9 +1545,17 @@ func (m *Manager) queryForPlugin(ctx context.Context, pluginInstance *Instance, 
 		return response
 	}
 
+	// Kuankuanlv parameter hint: a bare ordinary keyword (no space typed yet) whose
+	// plugin declared kuankuanlv_parameter_hint gets a core-owned hint row, shown
+	// alongside the plugin's own results. The plugin query above was already
+	// dispatched unconditionally — the hint never gates or intercepts dispatch.
+	// GUI recognizes the row by its TitleTag kind and turns Enter into "keyword + space".
+	response.Results = append(m.kuankuanlvParameterHintResults(ctx, pluginInstance, input.query), response.Results...)
+
 	finalizeStart := util.GetSystemTimestamp()
 	finalizeTimingStart := time.Now()
 	response = m.finalizePluginQueryResponse(ctx, pluginInstance, input.query, response, input.metadataLayout, input.queryContext, pluginQueryCost)
+	m.markKuankuanlvParameterHintResult(ctx, pluginInstance, &response)
 	if tracker := timetracking.New("query_for_plugin_finish"); tracker.Enabled() {
 		tracker.SetRawString("queryId", query.Id)
 		tracker.SetRawString("plugin", pluginLabel)
@@ -1527,6 +1567,54 @@ func (m *Manager) queryForPlugin(ctx context.Context, pluginInstance *Instance, 
 		tracker.Log(ctx)
 	}
 	return response
+}
+
+// kuankuanlvParameterHintResults builds the core-owned hint row for a bare
+// ordinary keyword whose plugin declared kuankuanlv_parameter_hint. It returns
+// nil in every other case so existing plugins keep their upstream behavior.
+func (m *Manager) kuankuanlvParameterHintResults(ctx context.Context, pluginInstance *Instance, query Query) []QueryResult {
+	if pluginInstance == nil {
+		return nil
+	}
+	// Bare keyword only: an explicit space moves the session into parameter-input
+	// state, where the plugin itself is expected to prompt for the parameter.
+	if query.TriggerKeyword == "" || query.Command != "" || strings.Contains(query.RawQuery, " ") || query.HasScope() {
+		return nil
+	}
+	hint := strings.TrimSpace(pluginInstance.Metadata.KuankuanlvParameterHint)
+	if hint == "" {
+		return nil
+	}
+	// The metadata validator strips the hint for wildcard ("*") plugins; guard
+	// again so a hand-edited metadata cannot route this row through "*".
+	if lo.Contains(pluginInstance.GetTriggerKeywords(), "*") {
+		return nil
+	}
+	return []QueryResult{{
+		Title:    hint,
+		SubTitle: pluginInstance.GetName(ctx),
+		ScoreKey: kuankuanlvParameterHintScoreKey,
+	}}
+}
+
+// markKuankuanlvParameterHintResult re-attaches the UI-visible marker chip after
+// polishing, because the result-binding pass resets TitleTags on unbound rows.
+// The row stays a normal query result for every other pipeline step.
+func (m *Manager) markKuankuanlvParameterHintResult(ctx context.Context, pluginInstance *Instance, response *QueryResponse) {
+	if response == nil {
+		return
+	}
+	for i := range response.Results {
+		if response.Results[i].ScoreKey != kuankuanlvParameterHintScoreKey {
+			continue
+		}
+		response.Results[i].TitleTags = []QueryResultTitleTag{{
+			Text:    "hint",
+			Kind:    QueryResultTitleTagKindKuankuanlvParameterHint,
+			Tooltip: "i18n:kuankuanlv_parameter_hint_tag_tooltip",
+		}}
+		return
+	}
 }
 
 func (m *Manager) buildPluginQueryInput(ctx context.Context, pluginInstance *Instance, query Query) pluginQueryInput {
@@ -2243,9 +2331,15 @@ func shouldClearGroupForGlobalQuery(query Query, pluginInstance *Instance) bool 
 	return true
 }
 
-// limitGlobalQueryPluginScore keeps plugin-provided global scores within Wox's shared ranking scale.
+// limitGlobalQueryPluginScore keeps plugin-provided scores within Wox's shared
+// ranking scale. Bare queries (no trailing space) always share the scale so a
+// keyword match can lift its own results above unrelated global providers.
 func limitGlobalQueryPluginScore(query Query, score int64) int64 {
-	if !query.IsGlobalQuery() || score <= globalQueryPluginScoreLimit {
+	bare := query.Type == QueryTypeInput && !strings.Contains(query.RawQuery, " ")
+	if !bare && !query.IsGlobalQuery() {
+		return score
+	}
+	if score <= globalQueryPluginScoreLimit {
 		return score
 	}
 
@@ -3416,6 +3510,12 @@ func (m *Manager) polishResult(ctx context.Context, pluginInstance *Instance, qu
 	scoreStart := util.GetSystemTimestamp()
 	scoreTimingStart := time.Now()
 	result.Score = limitGlobalQueryPluginScore(query, result.Score)
+	// A bare trigger keyword matching this plugin lifts its results above the
+	// shared-scale global providers, so the intended command appears first
+	// while global search stays selectable below.
+	if query.TriggerKeyword != "" && matchTriggerKeyword(pluginInstance.GetTriggerKeywords(), query.TriggerKeyword) {
+		result.Score += keywordMatchBoost
+	}
 	scoreFeatureStart := util.GetSystemTimestamp()
 	scoreFeatureTimingStart := time.Now()
 	// ignoreAutoScore is a plugin-context control; global search still needs actioned-result ranking across providers.
@@ -4124,6 +4224,8 @@ func (m *Manager) buildQueryPlan(ctx context.Context, query Query) (jobs []query
 
 		supportsDebounce := pluginInstance.Metadata.IsSupportFeature(MetadataFeatureDebounce)
 		job := queryPluginJob{pluginInstance: pluginInstance, blocksFallback: !supportsDebounce}
+		// Every keyword hit (exact or prefix) runs the plugin's query directly;
+		// the result list shows the plugin's results, not a plugin entry card.
 		if supportsDebounce {
 			debounceParams, err := pluginInstance.Metadata.GetFeatureParamsForDebounce()
 			if err != nil {

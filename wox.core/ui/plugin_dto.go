@@ -115,6 +115,13 @@ func convertPluginDto(ctx context.Context, pluginDto dto.PluginDto, pluginInstan
 			nonDynamicSettings[item.Value.GetKey()] = pluginInstance.API.GetSetting(ctx, item.Value.GetKey())
 		}
 	}
+	// Kuankuanlv GUI overrides live in the same plugin setting KV store; read them
+	// back so the settings extension form pre-fills user edits over author defaults.
+	for _, key := range []string{dto.KuankuanlvSettingInputFilterItems, dto.KuankuanlvSettingInputFilterPattern, dto.KuankuanlvSettingActions} {
+		if value := pluginInstance.API.GetSetting(ctx, key); value != "" {
+			nonDynamicSettings[key] = value
+		}
+	}
 	pluginDto.Setting = dto.PluginSettingDto{Disabled: pluginInstance.Setting.Disabled.Get(), TriggerKeywords: pluginInstance.Setting.TriggerKeywords.Get(), Settings: nonDynamicSettings}
 	pluginDto.Features = pluginInstance.Metadata.Features
 	pluginDto.TriggerKeywords = pluginInstance.GetTriggerKeywords()

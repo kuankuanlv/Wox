@@ -132,6 +132,7 @@ type GeneralSettings struct {
 	MainHotkeyRegistrationError        string
 	SelectionHotkey                    string
 	ActionPanelHotkey                  string
+	BuiltinHotkeyOverrides             map[string]string
 	IgnoreHotkeysOnFullscreen          bool
 	FullscreenDetectionSupported       bool
 	IgnoredHotkeyApps                  []setting.IgnoredHotkeyApp
@@ -434,6 +435,14 @@ type PluginCatalogItem struct {
 	IsUpgradable       bool
 	SettingDefinitions definition.PluginSettingDefinitions
 	Setting            PluginSetting
+
+	// Kuankuanlv fork extension metadata (read-only consumption by the settings UI).
+	KuankuanlvSchemaVersion       int
+	KuankuanlvInputFilter         *plugin.MetadataInputFilter
+	KuankuanlvParameterHint        string
+	KuankuanlvInputDescription     string
+	KuankuanlvOutputDescription    string
+	KuankuanlvActions              []plugin.MetadataAction
 }
 
 // PluginCatalogSettingsServices exposes installed and store plugin collections.

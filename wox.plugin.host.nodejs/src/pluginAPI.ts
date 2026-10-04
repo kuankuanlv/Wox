@@ -38,7 +38,7 @@ import * as crypto from "crypto"
 import { currentConnection, waitingForResponse } from "./connection"
 import Deferred from "promise-deferred"
 import { logger } from "./logger"
-import { MetadataCommand, PluginSettingDefinitionItem } from "@wox-launcher/wox-plugin/types/setting"
+import { MetadataCommand, MetadataInputFilter, PluginSettingDefinitionItem } from "@wox-launcher/wox-plugin/types/setting"
 import { AI } from "@wox-launcher/wox-plugin/types/ai"
 import { MRUData } from "@wox-launcher/wox-plugin"
 import { PluginJsonRpcTypeRequest, pluginInstances } from "./jsonrpc"
@@ -240,6 +240,12 @@ export class PluginAPI implements PublicAPI {
 
   async RegisterQueryCommands(ctx: Context, commands: MetadataCommand[]): Promise<void> {
     await this.invokeMethod(ctx, "RegisterQueryCommands", { commands: JSON.stringify(commands) })
+  }
+
+  async RegisterInputFilter(ctx: Context, filter: MetadataInputFilter): Promise<void> {
+    // filter already uses the lowercase mode/items/pattern tags that match Wox
+    // core's MetadataInputFilter; core reads it back as request.Params["filter"].
+    await this.invokeMethod(ctx, "RegisterInputFilter", { filter: JSON.stringify(filter) })
   }
 
   async RegisterTriggerKeyword(ctx: Context, option: RegisterTriggerKeywordOption): Promise<RegisterTriggerKeywordResult> {

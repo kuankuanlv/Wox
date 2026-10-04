@@ -147,6 +147,60 @@ class MetadataCommand:
 
 
 @dataclass
+class InputFilter:
+    """
+    Runtime input admission filter for a wildcard ("*") plugin.
+
+    Used with `api.register_input_filter()` to decide which user input actually
+    reaches a wildcard plugin. A plugin that declares the global "*" trigger
+    keyword would otherwise receive every eligible query, so the filter gates
+    input before it is dispatched.
+
+    The serialized field names (``mode``/``items``/``pattern``) match the Wox
+    core `MetadataInputFilter` JSON tags exactly.
+
+    Attributes:
+        mode: "list" to prefix-match the sub-command names in ``items`` against
+              user input, or "regex" to match ``pattern`` against user input.
+        items: list-mode sub-command names to admit.
+        pattern: regex-mode (RE2) regular expression to admit.
+
+    Example usage:
+        await api.register_input_filter(ctx, InputFilter(mode="list", items=["open", "close"]))
+        await api.register_input_filter(ctx, InputFilter(mode="regex", pattern=r"^cli (add|del)$"))
+    """
+
+    mode: str
+    """
+    Admission mode: "list" or "regex".
+    """
+
+    items: list[str] = field(default_factory=list)
+    """
+    Sub-command names for list mode. Ignored in regex mode.
+    """
+
+    pattern: str = field(default="")
+    """
+    Regular expression for regex mode. Ignored in list mode.
+    """
+
+    def to_dict(self) -> dict:
+        """
+        Convert to the lowercase-key dict Wox core expects
+        (`MetadataInputFilter` JSON tags: mode/items/pattern).
+
+        Returns:
+            JSON-serializable dict
+        """
+        return {
+            "mode": self.mode,
+            "items": list(self.items),
+            "pattern": self.pattern,
+        }
+
+
+@dataclass
 class Selection:
     """
     User-selected content from another application.

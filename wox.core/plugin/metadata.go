@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -93,6 +94,19 @@ type Metadata struct {
 	// Example: {"en_US": {"title": "Hello"}, "zh_CN": {"title": "你好"}}
 	I18n map[string]map[string]string
 
+	// --- kuankuanlv namespace extensions (fork-specific) ---
+	// These fields are unknown to upstream Wox, so upstream json.Unmarshal ignores
+	// them and keeps loading this fork's plugins. Conversely, this fork treats a
+	// missing extension as its zero/nil default when an upstream-style plugin.json
+	// is loaded. Upstream original fields (TriggerKeywords/Commands/...) are never
+	// altered by these extensions.
+	KuankuanlvSchemaVersion     int                  `json:"kuankuanlv_schema_version"`     // extension protocol version; 0 is normalized to 1
+	KuankuanlvInputFilter       *MetadataInputFilter `json:"kuankuanlv_input_filter"`       // only effective when TriggerKeywords contains "*"; nil means undeclared
+	KuankuanlvParameterHint     string               `json:"kuankuanlv_parameter_hint"`     // parameter hint for ordinary (non "*") keywords; empty means no parameter
+	KuankuanlvInputDescription  string               `json:"kuankuanlv_input_description"`  // read-only description of input content
+	KuankuanlvOutputDescription string               `json:"kuankuanlv_output_description"` // read-only description of output content
+	KuankuanlvActions           []MetadataAction     `json:"kuankuanlv_actions"`            // author-declared default result action combinations
+
 	// Directory is the absolute path to the plugin directory.
 	// It is populated during metadata initialization and not read from plugin.json.
 	Directory string `json:"-"`
@@ -104,6 +118,99 @@ type Metadata struct {
 	// cache for translations
 	translateCache     *util.HashMap[string, string] `json:"-"`
 	translateCacheOnce sync.Once                     `json:"-"`
+}
+
+// MetadataInputFilter declares an input admission filter that only takes effect
+// when the plugin registers the wildcard "*" trigger keyword.
+// JSON shape: {"mode":"list","items":["a","b"],"pattern":""}
+//   - "list": sub-command list, prefix matched against user input
+//   - "regex": a standard (RE2) regular expression matched against user input
+type MetadataInputFilter struct {
+	Mode    string   `json:"mode"`
+	Items   []string `json:"items"`
+	Pattern string   `json:"pattern"`
+}
+
+// IsList reports whether the filter declares list mode. A nil or unknown Mode
+// is treated as ineffective (false).
+func (f *MetadataInputFilter) IsList() bool { return f != nil && f.Mode == "list" }
+
+// IsRegex reports whether the filter declares regex mode. A nil or unknown Mode
+// is treated as ineffective (false).
+func (f *MetadataInputFilter) IsRegex() bool { return f != nil && f.Mode == "regex" }
+
+// MetadataAction declares one author-default result action combination.
+type MetadataAction struct {
+	Id     string `json:"id"`
+	Hotkey string `json:"hotkey"`
+	Label  string `json:"label"`
+}
+
+// ValidateKuankuanlvExtensions normalizes and loosely validates the fork-specific
+// kuankuanlv extension fields. It never rejects plugin loading: every invalid
+// binding combination is reset to its zero value and reported through the logger
+// (with the plugin Id) instead of returning a blocking error. The returned
+// error is reserved for genuinely unrecoverable scenarios and is currently
+// always nil so that this fork stays forward/backward compatible with upstream.
+func (m *Metadata) ValidateKuankuanlvExtensions(ctx context.Context) error {
+	// Normalize the extension protocol version: an unset (0) version means 1.
+	if m.KuankuanlvSchemaVersion == 0 {
+		m.KuankuanlvSchemaVersion = 1
+	}
+
+	hasWildcard := false
+	for _, kw := range m.TriggerKeywords {
+		if kw == "*" {
+			hasWildcard = true
+			break
+		}
+	}
+
+	// Wildcard ("*") plugins pass every keystroke as input, so a parameter hint
+	// has no meaning here. Ignore the declared hint.
+	if hasWildcard && m.KuankuanlvParameterHint != "" {
+		util.GetLogger().Warn(ctx, fmt.Sprintf(
+			"plugin %s: kuankuanlv_parameter_hint is ignored because the plugin registers wildcard trigger '*' (all input is parameter)", m.Id))
+		m.KuankuanlvParameterHint = ""
+	}
+
+	// The input filter is only meaningful for wildcard ("*") plugins. Ignore it
+	// for ordinary-keyword plugins.
+	if !hasWildcard && m.KuankuanlvInputFilter != nil {
+		util.GetLogger().Warn(ctx, fmt.Sprintf(
+			"plugin %s: kuankuanlv_input_filter is ignored because the plugin does not register wildcard trigger '*' (input filter only applies to '*' plugins)", m.Id))
+		m.KuankuanlvInputFilter = nil
+	}
+
+	// Remaining filter rules only apply to a filter that survived the wildcard
+	// scope rule above.
+	if m.KuankuanlvInputFilter != nil {
+		filter := m.KuankuanlvInputFilter
+
+		switch {
+		case !filter.IsList() && !filter.IsRegex():
+			// Mode must be "list" or "regex"; anything else is ineffective.
+			util.GetLogger().Warn(ctx, fmt.Sprintf(
+				"plugin %s: kuankuanlv_input_filter.mode %q is neither \"list\" nor \"regex\", ignoring input filter", m.Id, filter.Mode))
+			m.KuankuanlvInputFilter = nil
+		case filter.IsRegex():
+			// Regex mode requires a compilable pattern.
+			if _, err := regexp.Compile(filter.Pattern); err != nil {
+				util.GetLogger().Warn(ctx, fmt.Sprintf(
+					"plugin %s: kuankuanlv_input_filter.pattern %q is not a valid regex (%s), ignoring input filter", m.Id, filter.Pattern, err.Error()))
+				m.KuankuanlvInputFilter = nil
+			}
+		case filter.IsList():
+			// List mode requires at least one sub-command item.
+			if len(filter.Items) == 0 {
+				util.GetLogger().Warn(ctx, fmt.Sprintf(
+					"plugin %s: kuankuanlv_input_filter is list mode but items is empty, ignoring input filter", m.Id))
+				m.KuankuanlvInputFilter = nil
+			}
+		}
+	}
+
+	return nil
 }
 
 func (m *Metadata) GetIconOrDefault(pluginDirectory string, defaultImage common.WoxImage) common.WoxImage {

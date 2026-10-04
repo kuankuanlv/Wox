@@ -14,7 +14,7 @@ from .models.attention import PushAttentionRequest
 from .models.context import Context
 from .models.log import LogLevel
 from .models.mru import MRUData
-from .models.query import ChangeQueryParam, CopyParams, MetadataCommand, Query, RefreshQueryParam
+from .models.query import ChangeQueryParam, CopyParams, InputFilter, MetadataCommand, Query, RefreshQueryParam
 from .models.result import Result, UpdatableResult  # noqa: F401
 from .models.setting import PluginSettingDefinitionItem
 from .models.toolbar_msg import ToolbarMsg
@@ -588,6 +588,28 @@ class PublicAPI(Protocol):
                     description="List all todos"
                 ),
             ])
+        """
+        ...
+
+    async def register_input_filter(self, ctx: Context, filter: InputFilter) -> None:
+        """
+        Register a runtime input admission filter for a wildcard ("*") plugin.
+
+        A plugin that declares the global "*" trigger keyword would otherwise
+        receive every eligible query. The filter gates which input actually
+        reaches the plugin: use ``mode="list"`` with sub-command names
+        (prefix-matched against user input) or ``mode="regex"`` with a
+        ``pattern``. Re-registering replaces the previous runtime filter; the
+        metadata-declared filter stays untouched. Requires Wox >= 2.4.0.
+
+        Args:
+            ctx: Context
+            filter: The input filter to register
+
+        Example:
+            await api.register_input_filter(ctx, InputFilter(
+                mode="list", items=["open", "close"]
+            ))
         """
         ...
 

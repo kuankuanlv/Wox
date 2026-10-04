@@ -12,6 +12,7 @@ from wox_plugin import (
     Context,
     Conversation,
     LogLevel,
+    InputFilter,
     MetadataCommand,
     MRUData,
     PluginSettingDefinitionItem,
@@ -267,6 +268,19 @@ class PluginAPI(PublicAPI):
             ctx,
             "RegisterQueryCommands",
             {"commands": json.dumps([command.__dict__ for command in commands])},
+        )
+
+    async def register_input_filter(self, ctx: Context, filter: InputFilter) -> None:
+        """Register a runtime input admission filter for a wildcard ("*") plugin.
+
+        The filter is serialized with the lowercase keys (mode/items/pattern)
+        that match Wox core's `MetadataInputFilter` JSON tags; core reads it back
+        as request.Params["filter"].
+        """
+        await self.invoke_method(
+            ctx,
+            "RegisterInputFilter",
+            {"filter": json.dumps(filter.to_dict())},
         )
 
     async def register_trigger_keyword(self, ctx: Context, option: RegisterTriggerKeywordOption) -> RegisterTriggerKeywordResult:

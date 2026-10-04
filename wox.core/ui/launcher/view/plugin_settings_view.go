@@ -415,6 +415,7 @@ type PluginEditorProps struct {
 	Error             string
 	DescriptionDetail *PluginStoreDetailProps
 	Metadata          *PluginMetadataProps
+	Extension         *PluginMetadataProps
 	Form              *PluginFormProps
 	Keywords          *PluginFormProps
 	Commands          *PluginFormProps
@@ -501,8 +502,10 @@ func pluginEditor(props PluginEditorProps, width, height float32, theme woxcompo
 		}
 		content = append(content, woxcomponent.WoxSectionHeader(woxcomponent.SectionHeaderProps{Label: form.SectionLabel, Width: innerWidth, Theme: theme}), pluginFormContent(form, innerWidth, theme))
 	}
-	if props.Metadata != nil {
-		metadata := props.Metadata
+	for _, metadata := range []*PluginMetadataProps{props.Extension, props.Metadata} {
+		if metadata == nil {
+			continue
+		}
 		rows := []woxwidget.Widget{}
 		if metadata.EmptyTitle != "" {
 			rows = append(rows, pluginDetailCopy(metadata.EmptyTitle, innerWidth, theme))

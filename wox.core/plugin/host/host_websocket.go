@@ -868,6 +868,16 @@ func (w *WebsocketHost) handleRequestFromPlugin(ctx context.Context, request Jso
 
 		pluginInstance.API.RegisterQueryCommands(ctx, commands)
 		w.sendResponseToHost(ctx, request, "")
+	case "RegisterInputFilter":
+		var filter plugin.MetadataInputFilter
+		unmarshalErr := json.Unmarshal([]byte(request.Params["filter"]), &filter)
+		if unmarshalErr != nil {
+			util.GetLogger().Error(ctx, fmt.Sprintf("[%s] failed to unmarshal input filter: %s", request.PluginName, unmarshalErr))
+			return
+		}
+
+		pluginInstance.API.RegisterInputFilter(ctx, filter)
+		w.sendResponseToHost(ctx, request, "")
 	case "RegisterTriggerKeyword":
 		var option plugin.RegisterTriggerKeywordOption
 		if err := json.Unmarshal([]byte(request.Params["option"]), &option); err != nil {

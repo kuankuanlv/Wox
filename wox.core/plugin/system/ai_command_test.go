@@ -110,6 +110,7 @@ func (a *aiCommandTestAPI) OnDragOut(ctx context.Context, option plugin.DragOutL
 }
 func (a *aiCommandTestAPI) RegisterQueryCommands(ctx context.Context, commands []plugin.MetadataCommand) {
 }
+func (a *aiCommandTestAPI) RegisterInputFilter(ctx context.Context, filter plugin.MetadataInputFilter) {}
 func (a *aiCommandTestAPI) AIChatStream(ctx context.Context, model common.Model, conversations []common.Conversation, options common.ChatOptions, callback common.ChatStreamFunc) error {
 	if a.beforeStream != nil {
 		a.beforeStream()
