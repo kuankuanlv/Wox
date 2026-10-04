@@ -129,7 +129,6 @@ func (s *ShellPlugin) GetMetadata() plugin.Metadata {
 		Entry:         "",
 		TriggerKeywords: []string{
 			">",
-			"*", // Enable global query for commands
 		},
 		Commands: []plugin.MetadataCommand{},
 		SupportedOS: []string{

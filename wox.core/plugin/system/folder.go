@@ -78,7 +78,9 @@ func (p *FolderPlugin) GetMetadata() plugin.Metadata {
 		Icon:          icons.Get(icons.PluginFolder).String(),
 		Entry:         "",
 		TriggerKeywords: []string{
-			"*",
+			// Disabled for global participation: path browsing moved to the
+			// finder plugin, favorites moved to qigeTools commands. An empty
+			// keyword list means the plugin never matches.
 		},
 		SupportedOS: []string{
 			"Windows",

@@ -48,7 +48,7 @@ func (c *Converter) GetMetadata() plugin.Metadata {
 		Icon:          icons.Get(icons.PluginConverter).String(),
 		Entry:         "",
 		TriggerKeywords: []string{
-			"*",
+			"conv",
 		},
 		Commands: []plugin.MetadataCommand{},
 		SupportedOS: []string{

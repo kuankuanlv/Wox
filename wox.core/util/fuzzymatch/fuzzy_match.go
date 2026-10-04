@@ -106,8 +106,7 @@ func PrepareText(text string) *PreparedText {
 	}
 
 	runeCount := 0
-	for range text {
-		runeCount++
+	for range text {		runeCount++
 	}
 	prepared.originalRunes = make([]rune, 0, runeCount)
 	prepared.normalizedRunes = make([]rune, 0, runeCount)
@@ -118,6 +117,15 @@ func PrepareText(text string) *PreparedText {
 	}
 	return prepared
 }
+
+// Raw returns the original text (unmodified, case-preserving).
+func (t *PreparedText) Raw() string { return t.raw }
+
+// HasChinese reports whether the prepared text contains Chinese characters.
+func (t *PreparedText) HasChinese() bool { return t.hasChinese }
+
+// Raw returns the original pattern text (unmodified, case-preserving).
+func (p *PreparedPattern) Raw() string { return p.raw }
 
 // PreparePattern normalizes a pattern once for matching against many candidates.
 func PreparePattern(pattern string) *PreparedPattern {

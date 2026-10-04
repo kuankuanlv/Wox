@@ -270,6 +270,11 @@ func buildIgnoreRuleCandidates(info appInfo, displayName string) []string {
 	// name on Windows shortcuts (for example searchhost.exe for Search.lnk),
 	// so using it here would make ".exe" select every shortcut.
 	candidates = append(candidates, strings.TrimSpace(info.Path))
+	// Ignore-rule filtering is separate from search: search intentionally drops
+	// non-Chinese localized aliases (they caused subsequence noise), but a rule
+	// like "brightness" must still hide an app whose localized alias carries
+	// that word, and the settings preview must agree with backend filtering.
+	candidates = append(candidates, info.SearchableNames...)
 
 	filtered := make([]string, 0, len(candidates))
 	for _, candidate := range util.UniqueStrings(candidates) {

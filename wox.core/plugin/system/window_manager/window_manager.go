@@ -116,7 +116,6 @@ func (p *WindowManagerPlugin) GetMetadata() plugin.Metadata {
 		Icon:          windowManagerIcon.String(),
 		TriggerKeywords: []string{
 			"window",
-			"*",
 		},
 		Commands: windowManagerMetadataCommands(),
 		SupportedOS: []string{

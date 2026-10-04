@@ -55,7 +55,6 @@ func (c *CalculatorPlugin) GetMetadata() plugin.Metadata {
 		Icon:          calculatorIcon.String(),
 		Entry:         "",
 		TriggerKeywords: []string{
-			"*",
 			"calculator",
 		},
 		Commands: []plugin.MetadataCommand{},

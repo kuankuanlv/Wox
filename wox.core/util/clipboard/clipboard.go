@@ -11,7 +11,6 @@ import (
 	"image/png"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 	"wox/util"
 )
@@ -26,51 +25,16 @@ var WatchIntervalMillisecond = 250
 var nativeImageFileWriterMu sync.RWMutex
 var nativeImageFileWriter func(context.Context, string) error
 
-// selfWriteWindow is how long the watcher stays away from the clipboard around a
-// Wox write. It only has to cover the gap between marking the write and claiming
-// the change it produces, so ownership can settle without the watcher racing it.
-const selfWriteWindow = 200 * time.Millisecond
-
-// lastWriteTimestamp tracks the last time Wox wrote to the clipboard (UnixMilli).
-// Used to keep the polling loop away from the clipboard while Wox owns the write.
-var lastWriteTimestamp atomic.Int64
-
 // detectClipboardChange reports whether the clipboard changed and consumes the edge
 // it reports, so only the first caller after a change ever sees it. It is a variable
 // so tests can exercise that contract without a real clipboard.
 var detectClipboardChange = isClipboardChanged
 
-// beginSelfWrite opens the window before the platform write so a watcher tick that
-// overlaps the write cannot mistake it for somebody else's copy.
-func beginSelfWrite() {
-	lastWriteTimestamp.Store(time.Now().UnixMilli())
-}
-
-// endSelfWrite claims the change edge Wox's own write just produced. The platform
-// detectors consume the edge they report, so whoever asks first is the only one who
-// sees it. Claiming it at the source is what lets the watcher trust that any edge
-// still pending belongs to another application, instead of inferring ownership from
-// a timestamp and discarding a user copy that happened to land in the same window.
-func endSelfWrite() {
-	detectClipboardChange()
-	lastWriteTimestamp.Store(time.Now().UnixMilli())
-}
-
-// withinSelfWriteWindow reports whether Wox is still settling its own write.
-func withinSelfWriteWindow() bool {
-	return time.Since(time.UnixMilli(lastWriteTimestamp.Load())) < selfWriteWindow
-}
-
-// claimExternalChange reports whether this tick owns a change made outside Wox.
-// The order is the whole point: the platform detectors consume the edge they
-// report, so asking first and bailing afterwards destroys the only notice of an
-// external copy that landed next to a Wox write. Skipping first leaves that edge
-// pending for a later tick, and Wox's own edge is already claimed by endSelfWrite.
+// claimExternalChange reports whether this tick owns a clipboard change. Wox's own
+// writes are intentionally not excluded: every copy, including those made by Wox
+// itself (plugin copy actions, time-stamp copies, …), must reach the clipboard
+// history.
 func claimExternalChange() bool {
-	if withinSelfWriteWindow() {
-		util.GetLogger().Info(context.Background(), "clipboard: watcher tick skipped while Wox owns the write")
-		return false
-	}
 	return detectClipboardChange()
 }
 
@@ -185,7 +149,6 @@ func ReadFilesAndText() (Data, error) {
 }
 
 func Write(data Data) error {
-	beginSelfWrite()
 	switch data.GetType() {
 	case ClipboardTypeText:
 		if err := writeTextData(data.String()); err != nil {
@@ -205,33 +168,17 @@ func Write(data Data) error {
 	default:
 		return errors.New("not implemented")
 	}
-
-	// A failed write leaves the clipboard untouched, so only a write that landed
-	// may claim a change edge; claiming one otherwise would eat somebody else's.
-	endSelfWrite()
 	return nil
 }
 
 func WriteImageBytes(pngData []byte, dibData []byte) error {
-	beginSelfWrite()
-	if err := writeImageBytes(pngData, dibData); err != nil {
-		util.GetLogger().Error(context.Background(), fmt.Sprintf("clipboard: write image bytes failed: %v", err))
-		return err
-	}
-	endSelfWrite()
-	return nil
+	return writeImageBytes(pngData, dibData)
 }
 
 // WriteAnimatedGIF copies a local GIF file to the clipboard while preserving
 // animation. Static CopyTypeImage writes decode to PNG/DIB and drop frames.
 func WriteAnimatedGIF(filePath string) error {
-	beginSelfWrite()
-	if err := writeAnimatedGIFFile(filePath); err != nil {
-		util.GetLogger().Error(context.Background(), fmt.Sprintf("clipboard: write animated gif failed: %v", err))
-		return err
-	}
-	endSelfWrite()
-	return nil
+	return writeAnimatedGIFFile(filePath)
 }
 
 func isGIFBytes(data []byte) bool {

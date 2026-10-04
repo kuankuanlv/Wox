@@ -299,7 +299,15 @@ type QueryResult struct {
 const (
 	QueryResultTitleTagKindAlias  = "alias"
 	QueryResultTitleTagKindHotkey = "hotkey"
+	// QueryResultTitleTagKindKuankuanlvParameterHint marks the core-owned row that
+	// tells the GUI to complete the bare keyword to "keyword + space" on Enter.
+	// Core only produces this row; the Enter-to-complete interaction lives in GUI.
+	QueryResultTitleTagKindKuankuanlvParameterHint = "kuankuanlv_parameter_hint"
 )
+
+// kuankuanlvParameterHintScoreKey is the internal (non-UI) stable identity of the
+// core-owned parameter hint row, used to re-attach the UI marker after polishing.
+const kuankuanlvParameterHintScoreKey = "kuankuanlv_parameter_hint"
 
 // QueryResultTitleTag is one compact chip rendered after a result title.
 type QueryResultTitleTag struct {
@@ -587,13 +595,14 @@ func newQueryInputWithPlugins(query string, pluginInstances []*Instance) (Query,
 	var rawQuery = query
 	var triggerKeyword, command, search string
 	var possibleTriggerKeyword = terms[0]
-	var mustContainSpace = strings.Contains(query, " ")
 
 	pluginInstance, found := lo.Find(pluginInstances, func(instance *Instance) bool {
-		return lo.Contains(instance.GetTriggerKeywords(), possibleTriggerKeyword)
+		return matchTriggerKeyword(instance.GetTriggerKeywords(), possibleTriggerKeyword)
 	})
-	if found && mustContainSpace {
-		// non global trigger keyword
+	if found {
+		// A bare trigger keyword (no trailing space) also activates the plugin,
+		// while global "*" plugins keep responding, so the result list mixes
+		// plugin output with global search and the user picks by Enter.
 		triggerKeyword = possibleTriggerKeyword
 
 		if len(terms) == 1 {
@@ -635,4 +644,24 @@ func newQueryInputWithPlugins(query string, pluginInstances []*Instance) (Query,
 		Command:        command,
 		Search:         search,
 	}, pluginInstance
+}
+
+// matchTriggerKeyword reports whether word matches one of the plugin's trigger
+// keywords as a prefix (case-insensitive). The global wildcard "*" is excluded:
+// it has its own channel in canOperateQuery and must never be prefix-matched by
+// user input.
+func matchTriggerKeyword(keywords []string, word string) bool {
+	if word == "" {
+		return false
+	}
+	wordLower := strings.ToLower(word)
+	for _, kw := range keywords {
+		if kw == "*" {
+			continue
+		}
+		if strings.HasPrefix(strings.ToLower(kw), wordLower) {
+			return true
+		}
+	}
+	return false
 }

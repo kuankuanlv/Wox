@@ -69,7 +69,7 @@ func (c *BrowserPlugin) GetMetadata() plugin.Metadata {
 		Icon:          browserIcon.String(),
 		Entry:         "",
 		TriggerKeywords: []string{
-			"*", "browser",
+			"browser",
 		},
 		SupportedOS: []string{
 			"Windows",

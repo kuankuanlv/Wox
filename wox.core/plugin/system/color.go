@@ -63,7 +63,6 @@ func (c *ColorPlugin) GetMetadata() plugin.Metadata {
 		Icon:          colorPluginIcon.String(),
 		Entry:         "",
 		TriggerKeywords: []string{
-			"*",
 			"color",
 		},
 		Commands: []plugin.MetadataCommand{},

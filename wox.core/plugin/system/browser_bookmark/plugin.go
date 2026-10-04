@@ -65,7 +65,6 @@ func (c *BrowserBookmarkPlugin) GetMetadata() plugin.Metadata {
 		Icon:          browserBookmarkIcon.String(),
 		Entry:         "",
 		TriggerKeywords: []string{
-			"*",
 			"b",
 		},
 		Commands: []plugin.MetadataCommand{},

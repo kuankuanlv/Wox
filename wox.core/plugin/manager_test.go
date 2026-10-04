@@ -605,9 +605,9 @@ func TestShouldClearGroupForGlobalQueryKeepsFilePlugin(t *testing.T) {
 	}}
 	assert.True(t, shouldClearGroupForGlobalQuery(globalQuery, groupedPlugin))
 	bareQuery, owner := newQueryInputWithPlugins("game", []*Instance{groupedPlugin})
-	assert.True(t, bareQuery.IsGlobalQuery())
-	assert.Nil(t, owner)
-	assert.True(t, shouldClearGroupForGlobalQuery(bareQuery, groupedPlugin))
+	assert.False(t, bareQuery.IsGlobalQuery())
+	assert.Equal(t, owner, groupedPlugin)
+	assert.False(t, shouldClearGroupForGlobalQuery(bareQuery, groupedPlugin))
 	keywordQuery, owner := newQueryInputWithPlugins("game ", []*Instance{groupedPlugin})
 	assert.False(t, shouldClearGroupForGlobalQuery(keywordQuery, owner))
 }

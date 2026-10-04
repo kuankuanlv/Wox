@@ -79,6 +79,7 @@ func (a fileSearchToolbarTestAPI) OnDragOut(ctx context.Context, option plugin.D
 }
 func (a fileSearchToolbarTestAPI) RegisterQueryCommands(ctx context.Context, commands []plugin.MetadataCommand) {
 }
+func (a fileSearchToolbarTestAPI) RegisterInputFilter(ctx context.Context, filter plugin.MetadataInputFilter) {}
 func (a fileSearchToolbarTestAPI) AIChatStream(ctx context.Context, model common.Model, conversations []common.Conversation, options common.ChatOptions, callback common.ChatStreamFunc) error {
 	return nil
 }

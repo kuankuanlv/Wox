@@ -84,7 +84,7 @@ func (r *SysPlugin) GetMetadata() plugin.Metadata {
 		Icon:          sysIcon.String(),
 		Entry:         "",
 		TriggerKeywords: []string{
-			"*",
+			"sys",
 		},
 		Commands: r.getMetadataCommands(),
 		SupportedOS: []string{

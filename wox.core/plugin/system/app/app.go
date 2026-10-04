@@ -178,13 +178,12 @@ func (a *appInfo) GetDisplayPath() string {
 }
 
 func (a *appInfo) GetSearchCandidates(displayName string) []string {
+	// Only the visible app name and the bundle identity participate in matching.
+	// Path names and localized aliases are excluded: a query like "gong" must not
+	// hit every "*实用工具" (Utility) app through pinyin or path substrings.
 	candidates := []string{displayName, a.Name}
-	candidates = append(candidates, a.SearchableNames...)
-
-	baseName := filepath.Base(a.Path)
-	candidates = append(candidates, baseName)
-	if ext := filepath.Ext(baseName); ext != "" {
-		candidates = append(candidates, strings.TrimSuffix(baseName, ext))
+	if a.Identity != "" {
+		candidates = append(candidates, a.Identity)
 	}
 
 	var filtered []string
@@ -558,7 +557,6 @@ func (a *ApplicationPlugin) Query(ctx context.Context, query plugin.Query) plugi
 	queryTimingStart := time.Now()
 	isLaunchpadQuery := query.Command == appCommandLaunchpad
 	queryStartedAt := util.GetSystemTimestamp()
-	usePinyin := setting.GetSettingManager().GetWoxSetting(ctx).UsePinYin.Get()
 	preparedPattern := fuzzymatch.PreparePattern(query.Search)
 
 	// Query against a stable snapshot so index rebuilds or settings changes do not
@@ -601,18 +599,36 @@ func (a *ApplicationPlugin) Query(ctx context.Context, query plugin.Query) plugi
 
 		isMatch := false
 		bestScore := int64(0)
+		patternRaw := strings.ToLower(preparedPattern.Raw())
+		patternLen := len(patternRaw)
 		for _, candidate := range searchCandidates {
 			scoreCandidateCount++
 			scoreMatchStart := time.Now()
-			matchResult := fuzzymatch.FuzzyMatchPrepared(candidate, preparedPattern, usePinyin)
-			scoreMatchUs += time.Since(scoreMatchStart).Microseconds()
-			if !matchResult.IsMatch {
-				continue
-			}
 
-			if !isMatch || matchResult.Score > bestScore {
+			isCandidateMatch := false
+			candidateScore := int64(0)
+
+			// Substring containment (case-insensitive) is the matching contract:
+			// the pattern must appear as a contiguous whole (%wech%), never as a
+			// scattered subsequence (e.g. w-e-c-h across "west2online.ClashXPro").
+			idx := strings.Index(strings.ToLower(candidate.Raw()), patternRaw)
+			if idx >= 0 {
+				isCandidateMatch = true
+				candidateScore = int64(16)*int64(patternLen) + int64(30)
+				if idx == 0 {
+					candidateScore += int64(80) // prefix hit ranks first
+				} else {
+					candidateScore -= int64(idx) // earlier hits rank higher
+				}
+			}
+			// No pinyin matching: candidates are the display name and bundle id
+			// only, so a query like "gong" must not fuzzy-hit "无线实用工具"
+			// (Airport Utility) or any other Chinese localized utility name.
+
+			scoreMatchUs += time.Since(scoreMatchStart).Microseconds()
+			if isCandidateMatch && (!isMatch || candidateScore > bestScore) {
 				isMatch = true
-				bestScore = matchResult.Score
+				bestScore = candidateScore
 			}
 		}
 
@@ -693,6 +709,7 @@ func (a *ApplicationPlugin) Query(ctx context.Context, query plugin.Query) plugi
 			SubTitle: match.displayPath,
 			Icon:     icon,
 			Score:    match.score,
+			Group:    "应用",
 			Actions:  actions,
 		}
 

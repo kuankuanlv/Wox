@@ -118,7 +118,6 @@ func (m *MediaPlayerPlugin) GetMetadata() plugin.Metadata {
 		Icon:          mediaIcon.String(),
 		Entry:         "",
 		TriggerKeywords: []string{
-			"*",
 			"media",
 		},
 		SupportedOS: []string{
