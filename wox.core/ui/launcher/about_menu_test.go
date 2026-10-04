@@ -129,10 +129,10 @@ func TestAboutMenuHotkeyMatchesPrimaryShiftK(t *testing.T) {
 	if runtime.GOOS == "darwin" {
 		modifiers = woxui.KeyModifierMeta | woxui.KeyModifierShift
 	}
-	if !hotkeyMatches(aboutMenuHotkey(), woxui.KeyEvent{Key: "k", Modifiers: modifiers, Down: true}) {
-		t.Fatalf("about menu hotkey %q should match primary+shift+k", aboutMenuHotkey())
+	if !matchesBuiltinHotkey(builtinHotkeyAbout, nil, woxui.KeyEvent{Key: "k", Modifiers: modifiers, Down: true}) {
+		t.Fatalf("about menu hotkey %q should match primary+shift+k", builtinHotkeyDefaultKey(builtinHotkeyAbout))
 	}
-	if hotkeyMatches(aboutMenuHotkey(), woxui.KeyEvent{Key: "k", Modifiers: modifiers, Down: true, Composing: true}) {
+	if matchesBuiltinHotkey(builtinHotkeyAbout, nil, woxui.KeyEvent{Key: "k", Modifiers: modifiers, Down: true, Composing: true}) {
 		t.Fatal("IME composition must not toggle the about menu")
 	}
 	app := &App{generalSettings: &generalSettingsController{}}

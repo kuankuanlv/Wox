@@ -27,24 +27,19 @@ const (
 	aboutMenuGuideURL         = "https://www.woxlauncher.com/guide/introduction.html"
 	aboutMenuGuideURLZh       = "https://www.woxlauncher.com/zh/guide/introduction.html"
 	aboutMenuChangelogURL     = "https://github.com/Wox-launcher/Wox/releases"
-	aboutMenuGithubURL        = "https://github.com/Wox-launcher/Wox"
+	aboutMenuGithubURL        = "https://github.com/kuankuanlv/Wox"
 	aboutMenuRedditURL        = "https://www.reddit.com/r/WoxLauncher/"
 	aboutMenuDiscordURL       = "https://discord.gg/NnahFAwm3"
 
 	aboutMenuDefaultSettingsPath = "/"
 	aboutMenuGuideTail           = "woxlauncher.com"
-	aboutMenuGithubTail          = "Wox-Launcher/Wox"
+	aboutMenuGithubTail          = "kuankuanlv/Wox"
 	aboutMenuRedditTail          = "r/WoxLauncher"
 	// aboutMenuDiscordUserCount is the advertised Discord size. Raise it by hand as the community grows.
 	aboutMenuDiscordUserCount = 6
 
 	aboutMenuTooltipName = "go-ui-about-menu"
 )
-
-// aboutMenuHotkey is the launcher-local shortcut: primary+shift+k.
-func aboutMenuHotkey() string {
-	return primaryHotkey("shift+k")
-}
 
 // aboutMenuVersionTail formats the running version for the Changelog row.
 func aboutMenuVersionTail(version string) string {
@@ -259,7 +254,7 @@ func (a *App) onAboutMenuHover(inside bool, bounds woxui.Rect) {
 	}
 	a.setNativeHoverTooltipWithHotkeys(
 		&a.aboutMenuTooltipRevision, aboutMenuTooltipName, "update about menu tooltip",
-		inside, a.translate("i18n:toolbar_about_menu"), formatHotkeyLabels(aboutMenuHotkey()), bounds, "top",
+		inside, a.translate("i18n:toolbar_about_menu"), formatHotkeyLabels(a.builtinHotkeyForEffective(builtinHotkeyAbout)), bounds, "top",
 		func() *woxui.Window { return a.window },
 	)
 }

@@ -1,5 +1,16 @@
 # Changelog
 
+## v2.4.5-kuankuanlv.1 - 2026-10-02
+
+Personal build on top of upstream v2.4.5 (master @ f53a8845b). Versions use the `v<upstream>-kuankuanlv.<N>` scheme so tags never collide with upstream.
+
+- Improve
+  - [`Hotkey`] Registration-based built-in hotkeys (about/settings/actionPanel); hotkey settings page split into Global and In-App layers with keyword bindings; plugin hotkeys aggregated read-only; dictation merged into the generic hotkey type.
+  - [`Hotkey`] Cmd+F/Cmd+U keyboard dispatch removed (filter/attention remain UI-only entries); clipboard-history hotkey promoted to Global; per-row ExposeLevel picker removed (the owning table is the level).
+  - [`Hotkey`] In-app hotkey to quit Wox (Cmd+Q, also shown in the hotkey overview and overridable there).
+  - [`Settings`] Auto-update now defaults to off; About links to the fork repository and reports `2.4.5-kuankuanlv.1`.
+  - [`Launcher`] Tab completes the first matching path level with the real on-disk casing; directories gain a trailing "/" to continue one level deeper.
+
 ## v2.4.5 - 2026-09-23
 
 This release lets you set a global hotkey or a search alias on any result.
