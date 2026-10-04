@@ -802,7 +802,7 @@ func (a *App) beginFormTableRowEdit(index int, rowEditorOnly, cloneRow bool) {
 	}
 	fields, _ := formTableRowFields(state.definition, base)
 	state.collapsedGroups = defaultFormTableCollapsedGroups(state.definition)
-	if state.definition.Value.Key == "QueryHotkeys" {
+	if isQueryHotkeysTableKey(state.definition.Value.Key) {
 		state.queryPreset = inferQueryHotkeyPreset(fields.values)
 	}
 	if a.aiSettings != nil {
@@ -876,7 +876,7 @@ func queryHotkeyFieldVisible(preset queryHotkeyPreset, key string, editing bool)
 // applyQueryHotkeyPreset mirrors Flutter's task presets and clears display values hidden by the selected mode.
 func (a *App) applyQueryHotkeyPreset(preset string) {
 	state := a.activeFormTableEditor()
-	if state == nil || state.definition.Value.Key != "QueryHotkeys" || state.rowForm == nil {
+	if state == nil || !isQueryHotkeysTableKey(state.definition.Value.Key) || state.rowForm == nil {
 		return
 	}
 	syncFormFieldsEditorLocked(state.rowForm)
@@ -1880,7 +1880,7 @@ func formTableQueryVariableKindForField(state *formTableEditorState, index int) 
 			break
 		}
 	}
-	if state.definition.Value.Key == "QueryHotkeys" && definition.Value.Key == "Query" {
+	if isQueryHotkeysTableKey(state.definition.Value.Key) && definition.Value.Key == "Query" {
 		return formTableQueryVariableKindQueryHotkey
 	}
 	return ""
@@ -2270,7 +2270,7 @@ func (a *App) onFormTableKey(event woxui.KeyEvent) bool {
 		a.saveFormTableRowEdit()
 		return true
 	}
-	if fieldType == "hotkey" || fieldType == "dictationHotkey" {
+	if fieldType == "hotkey" {
 		return false
 	}
 	if textEditable {

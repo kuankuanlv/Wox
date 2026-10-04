@@ -127,6 +127,12 @@ func (a *App) ensureOnboardingWindow() (*woxui.ManagedWindow, error) {
 				if a.hotkeyRecordingUsesOnboardingWindow() && a.onOnboardingWindowKey(event) {
 					return true
 				}
+				if matchesBuiltinHotkey(builtinHotkeyQuit, a.builtinHotkeyOverrides(), event) {
+					if !event.Repeat {
+						a.quitApp()
+					}
+					return true
+				}
 				if host.Key(event) {
 					return true
 				}
@@ -364,6 +370,20 @@ func (a *App) onSettingsWindowKey(event woxui.KeyEvent) bool {
 		return false
 	}
 	if a.hotkeyRecordingUsesSettingsWindow() && a.onHotkeyRecordingKey(event) {
+		return true
+	}
+	if matchesBuiltinHotkey(builtinHotkeyQuit, a.builtinHotkeyOverrides(), event) {
+		if !event.Repeat {
+			a.quitApp()
+		}
+		return true
+	}
+	if matchesBuiltinHotkey(builtinHotkeyCloseWindow, a.builtinHotkeyOverrides(), event) {
+		if !event.Repeat {
+			if err := a.closeSettings(); err != nil {
+				log.Printf("close settings window from hotkey: %v", err)
+			}
+		}
 		return true
 	}
 	if a.formTableUsesSettingsWindow() {

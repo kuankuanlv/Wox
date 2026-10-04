@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"wox/setting"
 	launcherview "wox/ui/launcher/view"
 	woxui "wox/ui/runtime"
 	woxwidget "wox/ui/widget"
@@ -153,7 +154,7 @@ func (a *App) currentActionPanelEntries() []actionPanelEntry {
 
 // resultActionPanelEntries is the right-hand Action Panel list, independent of About Menu.
 func (a *App) resultActionPanelEntries() []actionPanelEntry {
-	return unifiedActionPanelEntriesWithHide(a.results, a.selected, a.toolbarMsg, a.canHideWebViewPage())
+	return unifiedActionPanelEntriesWithHide(a.resultsWithProjectedActions(), a.selected, a.toolbarMsg, a.canHideWebViewPage())
 }
 
 // unifiedActionPanelEntries mirrors Flutter's local-and-toolbar-before-plugin ordering and hotkey conflict handling.
@@ -403,14 +404,37 @@ func (a *App) onActionKey(event woxui.KeyEvent) bool {
 	if !event.Down || event.Composing {
 		return false
 	}
-	if hotkeyMatches(aboutMenuHotkey(), event) {
+	if matchesBuiltinHotkey(builtinHotkeyAbout, a.builtinHotkeyOverrides(), event) {
 		if event.Repeat {
 			return true
 		}
 		a.toggleAboutMenu()
 		return true
 	}
-	if hotkeyMatches(a.actionPanelHotkey(), event) {
+	if matchesBuiltinHotkey(builtinHotkeySettings, a.builtinHotkeyOverrides(), event) {
+		if event.Repeat {
+			return true
+		}
+		a.openSettingsFromHotkey()
+		return true
+	}
+	if matchesBuiltinHotkey(builtinHotkeyQuit, a.builtinHotkeyOverrides(), event) {
+		if event.Repeat {
+			return true
+		}
+		a.quitApp()
+		return true
+	}
+	if matchesBuiltinHotkey(builtinHotkeyCloseWindow, a.builtinHotkeyOverrides(), event) {
+		if event.Repeat {
+			return true
+		}
+		if err := a.hideWindow(false); err != nil {
+			log.Printf("close launcher window from hotkey: %v", err)
+		}
+		return true
+	}
+	if matchesBuiltinHotkeyEffective(a, builtinHotkeyActionPanel, event) {
 		if event.Repeat {
 			return true
 		}
@@ -463,6 +487,57 @@ func (a *App) onActionKey(event woxui.KeyEvent) bool {
 			a.activateSelectedAction()
 			return true
 		}
+	}
+	return false
+}
+
+// openSettingsFromHotkey opens the settings window from a built-in hotkey
+// (macOS-standard Cmd+, on macOS, Ctrl+, elsewhere).
+func (a *App) openSettingsFromHotkey() bool {
+	if err := a.openSettings(settingWindowContext{Source: "hotkey"}); err != nil {
+		log.Printf("open settings from hotkey: %v", err)
+		return false
+	}
+	return true
+}
+
+// quitApp exits Wox through the shared once-only teardown (same path as the tray quit menu).
+func (a *App) quitApp() {
+	if a.services == nil {
+		return
+	}
+	if err := a.services.ExitApp(context.Background(), a.sessionID); err != nil {
+		log.Printf("quit app: %v", err)
+	}
+}
+
+// onAppQueryHotkey executes app-level query hotkeys (ExposeLevel = app) while
+// the Wox window is focused. These hotkeys are not registered system-wide; the
+// key press reaches Wox only when its window has focus, and it fills the query
+// box with the bound keyword and runs it.
+func (a *App) onAppQueryHotkey(event woxui.KeyEvent) bool {
+	if a.generalSettings == nil || event.Composing {
+		return false
+	}
+	for _, item := range a.generalSettings.Data().QueryHotkeys {
+		if item.Disabled || item.ExposeLevel != setting.QueryHotkeyExposeLevelApp || strings.TrimSpace(item.Hotkey) == "" {
+			continue
+		}
+		if !hotkeyMatches(item.Hotkey, event) {
+			continue
+		}
+		query := strings.TrimSpace(item.Query)
+		if query == "" {
+			continue
+		}
+		a.rememberQueryHint()
+		a.setQuery(newInputQuery(query))
+		util.Go(a.lifecycleCtx, "execute app query hotkey", func() {
+			if err := a.sendCurrentQuery(); err != nil {
+				util.GetLogger().Error(a.lifecycleCtx, "send app query hotkey: "+err.Error())
+			}
+		})
+		return true
 	}
 	return false
 }

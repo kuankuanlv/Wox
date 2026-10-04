@@ -220,8 +220,8 @@ func (p *DictationPlugin) GetMetadata() plugin.Metadata {
 		},
 		SettingDefinitions: []definition.PluginSettingDefinitionItem{
 			{
-				Type: definition.PluginSettingDefinitionTypeDictationHotkey,
-				Value: &definition.PluginSettingValueDictationHotkey{
+				Type: definition.PluginSettingDefinitionTypeHotkey,
+				Value: &definition.PluginSettingValueHotkey{
 					Key:          settingKeyDefaultHotkey,
 					Label:        "i18n:plugin_dictation_hotkey",
 					Tooltip:      "i18n:plugin_dictation_hotkey_tooltip",

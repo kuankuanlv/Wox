@@ -16,6 +16,10 @@ type WoxSetting struct {
 	MainHotkey                *PlatformValue[string]
 	SelectionHotkey           *PlatformValue[string]
 	ActionPanelHotkey         *PlatformValue[string] // Action Hotkey; new default primary+K, existing users keep J via migration.
+	// BuiltinHotkeyOverrides stores user overrides for launcher-level built-in
+	// hotkeys (about/filter/attention/settings) keyed by registry ID. Absent
+	// keys fall back to the platform defaults; an empty value reverts to default.
+	BuiltinHotkeyOverrides *PlatformValue[map[string]string]
 	IgnoreHotkeysOnFullscreen *PlatformValue[bool]
 	IgnoredHotkeyApps         *PlatformValue[[]IgnoredHotkeyApp]
 	LogLevel                  *WoxSettingValue[string]
@@ -287,8 +291,16 @@ type QueryHotkey struct {
 	Width             int
 	MaxResultCount    int
 	Position          QueryHotkeyPosition
+	ExposeLevel       string // "" / "global" = system hotkey, any app frontmost; "app" = only while Wox is focused, dispatched by the launcher
 	Disabled          bool
 }
+
+// QueryHotkey expose levels. The zero value ("") behaves as global so existing
+// entries keep registering system-wide hotkeys.
+const (
+	QueryHotkeyExposeLevelGlobal = "global"
+	QueryHotkeyExposeLevelApp    = "app"
+)
 
 func (q QueryHotkey) DisplayName() string {
 	if strings.TrimSpace(q.Name) != "" {
@@ -445,6 +457,7 @@ func NewWoxSetting(store *WoxSettingStore) *WoxSetting {
 		MainHotkey:                NewPlatformValue(store, "MainHotkey", "alt+space", "cmd+space", "ctrl+space"),
 		SelectionHotkey:           NewPlatformValue(store, "SelectionHotkey", "win+alt+space", "command+option+space", "ctrl+shift+j"),
 		ActionPanelHotkey:         NewPlatformValue(store, "ActionPanelHotkey", DefaultActionPanelHotkeyWindows, DefaultActionPanelHotkeyMac, DefaultActionPanelHotkeyLinux),
+		BuiltinHotkeyOverrides:    NewPlatformValue(store, "BuiltinHotkeyOverrides", map[string]string{}, map[string]string{}, map[string]string{}),
 		IgnoreHotkeysOnFullscreen: NewPlatformValue(store, "IgnoreHotkeysOnFullscreen", false, false, false),
 		IgnoredHotkeyApps:         NewPlatformValue(store, "IgnoredHotkeyApps", []IgnoredHotkeyApp{}, []IgnoredHotkeyApp{}, []IgnoredHotkeyApp{}),
 		LogLevel: NewWoxSettingValueWithValidator(store, "LogLevel", LogLevelInfo, func(level string) bool {
@@ -486,7 +499,7 @@ func NewWoxSetting(store *WoxSettingStore) *WoxSetting {
 		CloudSyncServerUrl:                 NewLocalWoxSettingValue(store, "CloudSyncServerUrl", ""),
 		CloudSyncDisabledPlugins:           NewWoxSettingValue(store, "CloudSyncDisabledPlugins", []string{}),
 		EnableAutoBackup:                   NewWoxSettingValue(store, "EnableAutoBackup", true),
-		EnableAutoUpdate:                   NewWoxSettingValue(store, "EnableAutoUpdate", true),
+		EnableAutoUpdate:                   NewWoxSettingValue(store, "EnableAutoUpdate", false),
 		ReleaseChannel:                     NewWoxSettingValueWithValidator(store, "ReleaseChannel", ReleaseChannelStable, IsValidReleaseChannel),
 		LastWindowPosition:                 NewLocalWoxSettingValue(store, "LastWindowPosition", SavedWindowPosition{}),
 		LastWindowX:                        NewLocalWoxSettingValue(store, "LastWindowX", -1),

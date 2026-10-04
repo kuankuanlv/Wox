@@ -1630,19 +1630,20 @@ func (a *App) onKey(event woxui.KeyEvent) bool {
 			return true
 		}
 		if event.Modifiers == 0 {
-			if !a.acceptQueryCompletionHint() {
-				a.rejectQueryTab()
+			if !a.completePathTab() {
+				if !a.completeKeywordTab() {
+					if !a.acceptQueryCompletionHint() {
+						a.rejectQueryTab()
+					}
+				}
 			}
 			return true
 		}
 	}
-	if event.Key == woxui.Key("f") && event.Modifiers.HasPrimary() && a.toggleRefinementBar() {
-		return true
-	}
-	if event.Key == woxui.Key("u") && event.Modifiers.HasPrimary() && a.activateAttentionUnread() {
-		return true
-	}
 	if a.onRefinementHotkey(event) {
+		return true
+	}
+	if a.onAppQueryHotkey(event) {
 		return true
 	}
 	if a.onResultActionHotkey(event) {

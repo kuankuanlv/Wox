@@ -3,6 +3,7 @@ package launcher
 import (
 	"fmt"
 	"log"
+	"os"
 	"slices"
 	"strings"
 	"time"
@@ -56,14 +57,9 @@ func (a *App) refinementViewProps(snapshot viewSnapshot, width, height, imageSca
 	}
 }
 
-// refinementToggleTooltip advertises the same Ctrl/Cmd+F shortcut the launcher binds to the filter bar.
+// refinementToggleTooltip describes the filter bar toggle shown on the launcher accessory.
 func (a *App) refinementToggleTooltip() string {
-	hotkey := strings.Join(formatHotkeyLabels(primaryHotkey("f")), "+")
-	text := a.translate("i18n:ui_query_refinement_filters_tooltip")
-	if strings.HasPrefix(text, "ui query refinement") || text == "" {
-		text = "Filter search results ({hotkey})"
-	}
-	return strings.ReplaceAll(text, "{hotkey}", hotkey)
+	return a.translate("i18n:ui_query_refinement_filters_tooltip")
 }
 
 // setRefinementTooltip anchors filter-button help to the launcher query accessory.
@@ -151,8 +147,34 @@ func (a *App) applyRefinementsLocked(refinements []queryRefinement) {
 	}
 }
 
+// expandQueryTextHome expands a leading "~" token to the user's home directory,
+// mirroring shell tilde expansion. It returns the expanded text and whether
+// expansion happened; anything else is returned unchanged.
+func expandQueryTextHome(text string) (string, bool) {
+	if text != "~" && !strings.HasPrefix(text, "~/") {
+		return text, false
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return text, false
+	}
+	if text == "~" {
+		return home, true
+	}
+	return home + text[1:], true
+}
+
 // applyQueryTextChangeLocked starts a new query while retaining controls only inside their plugin scope.
 func (a *App) applyQueryTextChangeLocked(text string) {
+	// Expand a leading "~" at the input layer so the rest of the query chain
+	// (core, plugins, path completion) only ever sees absolute paths; "~" is
+	// not a recognized token anywhere below this point.
+	if expanded, ok := expandQueryTextHome(text); ok {
+		caret := a.editor.State().Selection.Focus
+		a.editor.SetText(expanded, false)
+		a.editor.SetCaret(caret + len([]rune(expanded)) - len([]rune(text)))
+		text = expanded
+	}
 	text = a.updateQueryHintText(text)
 	a.canRecallHistory = false
 	a.reuseCompletionHintLocked(text)

@@ -12,6 +12,7 @@ import (
 
 	"wox/plugin"
 	"wox/ui/contract"
+	"wox/ui/dto"
 	woxui "wox/ui/runtime"
 	woxwidget "wox/ui/widget"
 	"wox/util"
@@ -45,6 +46,16 @@ type pluginSettingsPlugin struct {
 	IsUpgradable       bool               `json:"IsUpgradable"`
 	SettingDefinitions []formDefinition   `json:"SettingDefinitions"`
 	Setting            pluginSettingsData `json:"Setting"`
+
+	// Kuankuanlv fork extension metadata consumed by the settings extension area.
+	// All zero values mean the plugin is an upstream/original plugin, in which
+	// case the extension area renders nothing instead of crashing.
+	KuankuanlvSchemaVersion       int                   `json:"KuankuanlvSchemaVersion"`
+	KuankuanlvInputFilter         *plugin.MetadataInputFilter `json:"KuankuanlvInputFilter"`
+	KuankuanlvParameterHint        string                `json:"KuankuanlvParameterHint"`
+	KuankuanlvInputDescription     string                `json:"KuankuanlvInputDescription"`
+	KuankuanlvOutputDescription    string                `json:"KuankuanlvOutputDescription"`
+	KuankuanlvActions              []plugin.MetadataAction `json:"KuankuanlvActions"`
 }
 
 type pluginCommand struct {
@@ -313,6 +324,15 @@ func (a *App) reloadPlugins(store bool, preferredID string) error {
 		}
 		requestModels, requestProviders = a.queuePluginFormAIModelsLocked()
 		a.invalidateSettingsWindow()
+		if a.settingTab == "hotkey" {
+			// The hotkey tab shows aggregated plugin hotkeys; rebuild its form
+			// now that the plugin catalog is available.
+			util.Go(a.lifecycleCtx, "rebuild hotkey form after plugin load", func() {
+				if err := a.reloadSettingsWithForms(true); err != nil {
+					log.Printf("rebuild hotkey form: %v", err)
+				}
+			})
+		}
 	}); err != nil {
 		return err
 	}
@@ -593,6 +613,25 @@ func (a *App) setPluginSelectionLocked(index int) {
 	for key, value := range plugin.Setting.Settings {
 		values[key] = value
 	}
+	// Kuankuanlv extension editors: pre-fill the author-declared defaults when the
+	// user has not saved an override yet. Saved overrides arrive through
+	// plugin.Setting.Settings (read back from the plugin setting KV store).
+	if filter := plugin.KuankuanlvInputFilter; filter != nil && kuankuanlvHasWildcardTrigger(plugin) {
+		if filter.IsList() {
+			if _, ok := values[dto.KuankuanlvSettingInputFilterItems]; !ok {
+				values[dto.KuankuanlvSettingInputFilterItems] = encodeKuankuanlvFilterItems(filter.Items)
+			}
+		} else if filter.IsRegex() {
+			if _, ok := values[dto.KuankuanlvSettingInputFilterPattern]; !ok {
+				values[dto.KuankuanlvSettingInputFilterPattern] = filter.Pattern
+			}
+		}
+	}
+	if len(plugin.KuankuanlvActions) > 0 {
+		if _, ok := values[dto.KuankuanlvSettingActions]; !ok {
+			values[dto.KuankuanlvSettingActions] = encodeKuankuanlvActions(plugin.KuankuanlvActions)
+		}
+	}
 	applyDictationFormCompatibility(plugin, values)
 	fields := newFormFieldsState(definitions, values, false)
 	preserveDictationCompatibilityValues(plugin.ID, fields.values, values)
@@ -615,6 +654,7 @@ func pluginSettingsFormDefinitions(plugin pluginSettingsPlugin) []formDefinition
 	// preserves its save flow without duplicating either control in the Settings tab.
 	definitions := []formDefinition{pluginTriggerKeywordDefinition()}
 	definitions = append(definitions, plugin.SettingDefinitions...)
+	definitions = append(definitions, kuankuanlvEditableFormDefinitions(plugin)...)
 	allSettingsAreTables := len(plugin.SettingDefinitions) > 0
 	for _, definition := range plugin.SettingDefinitions {
 		if definition.Type != "table" {
@@ -1151,7 +1191,7 @@ func (a *App) onPluginSettingsKey(event woxui.KeyEvent) bool {
 				anchor, _ = host.BoundsForKey(woxwidget.Key(fmt.Sprintf("plugin-settings-field-%d", focused)))
 			}
 			a.openPluginModelManager(focused, anchor)
-		} else if fieldType == "dictationHotkey" {
+		} else if fieldType == "hotkey" {
 			a.recordPluginFormHotkey(focused)
 		} else if fieldType == "select" || fieldType == "selectAIModel" {
 			a.openFocusedPluginFormChoice(focused)
@@ -1208,14 +1248,14 @@ func (a *App) runPluginServiceAction(actionID string) {
 	})
 }
 
-// recordPluginFormHotkey reuses core's dictation-aware recorder while keeping the value staged with other plugin changes.
+// recordPluginFormHotkey starts the shared recorder for a plugin hotkey field while keeping the value staged with other plugin changes.
 func (a *App) recordPluginFormHotkey(index int) {
 	state := a.pluginSettings.Form()
-	if state == nil || index < 0 || index >= len(state.definitions) || state.definitions[index].Type != "dictationHotkey" {
+	if state == nil || index < 0 || index >= len(state.definitions) || state.definitions[index].Type != "hotkey" {
 		return
 	}
 	target := &state.formFieldsState
-	a.startHotkeyRecording("plugin-settings", target, index, "", dictationHotkeyRecordingKinds, nil)
+	a.startHotkeyRecording("plugin-settings", target, index, "", defaultHotkeyRecordingKinds, nil)
 }
 
 // activatePluginForm transfers keyboard and IME ownership from the plugin list to its first field.
@@ -1730,6 +1770,26 @@ func preparePluginSettingSaveValues(state *pluginSettingsFormState) (map[string]
 			return nil, nil, err
 		}
 		persisted["TriggerKeywords"] = strings.Join(keywords, ",")
+	}
+	// Kuankuanlv overrides: convert table-rows JSON into the plain override values
+	// the plugin setting KV store (and core runtime application) consume.
+	if value, ok := persisted[dto.KuankuanlvSettingInputFilterItems]; ok {
+		items, err := decodeKuankuanlvFilterItemRows(value)
+		if err != nil {
+			return nil, nil, err
+		}
+		encoded, err := json.Marshal(items)
+		if err != nil {
+			return nil, nil, err
+		}
+		persisted[dto.KuankuanlvSettingInputFilterItems] = string(encoded)
+	}
+	if value, ok := persisted[dto.KuankuanlvSettingActions]; ok {
+		encoded, err := persistKuankuanlvActionTableRows(value)
+		if err != nil {
+			return nil, nil, err
+		}
+		persisted[dto.KuankuanlvSettingActions] = encoded
 	}
 	if err := rewriteDictationSaveValues(state.pluginID, state.values, state.initial, persisted); err != nil {
 		return nil, nil, err

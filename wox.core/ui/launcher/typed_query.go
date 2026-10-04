@@ -343,8 +343,6 @@ func fromCoreFormDefinition(item definition.PluginSettingDefinitionItem) (formDe
 		}
 	case *definition.PluginSettingValueHotkey:
 		converted.Value = formDefinitionValue{Key: value.Key, Label: value.Label, Tooltip: value.Tooltip, DefaultValue: value.DefaultValue}
-	case *definition.PluginSettingValueDictationHotkey:
-		converted.Value = formDefinitionValue{Key: value.Key, Label: value.Label, Tooltip: value.Tooltip, DefaultValue: value.DefaultValue}
 	case *definition.PluginSettingValueDictationModel:
 		options := make([]formOption, len(value.Options))
 		for index, option := range value.Options {

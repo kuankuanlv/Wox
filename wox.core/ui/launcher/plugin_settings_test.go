@@ -989,7 +989,7 @@ func TestOpenPluginAIModelChoiceUsesCachedCatalogAndEmptyState(t *testing.T) {
 }
 
 func TestPreparePluginSettingSaveValuesTracksDictationDerivedFields(t *testing.T) {
-	definition := formDefinition{Type: "dictationHotkey"}
+	definition := formDefinition{Type: "hotkey"}
 	definition.Value.Key = dictationDefaultHotkeyKey
 	state := &pluginSettingsFormState{
 		pluginID: dictationPluginID,

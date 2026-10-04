@@ -314,6 +314,11 @@ func (s *Service) collectWoxConfig(ctx context.Context, config WoxConfig) {
 		if qh.Disabled || strings.TrimSpace(qh.Hotkey) == "" {
 			continue
 		}
+		if qh.ExposeLevel == setting.QueryHotkeyExposeLevelApp {
+			// App-level hotkeys are dispatched by the launcher while the Wox
+			// window is focused; they must not occupy a system hotkey.
+			continue
+		}
 		queryHotkey := qh
 		combineKey := strings.TrimSpace(queryHotkey.Hotkey)
 		queryEntries = append(queryEntries, Entry{

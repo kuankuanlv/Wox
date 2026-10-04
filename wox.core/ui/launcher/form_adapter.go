@@ -140,12 +140,29 @@ func (a *App) buildFormField(fields formFieldsSnapshot, callbacks formFieldCallb
 		})
 	case "head", "label", "newline":
 		return launcherview.FormStaticField(launcherview.FormStaticFieldProps{Width: width, Height: height, Value: a.translate(value.Content), Kind: definition.Type, Theme: palette})
+	case "sectionHead":
+		// Prominent group header used by the Hotkey settings page to make
+		// exposure levels (global / in-app / plugin) visually distinct.
+		return woxwidget.Container{
+			Width:   width,
+			Padding: woxwidget.Insets{Top: woxcomponent.SectionHeaderLead},
+			Child: woxwidget.Container{
+				Width: width, Height: 44,
+				Child: woxwidget.Align{Height: 44, Vertical: 0.5, Child: woxwidget.Text{
+					Value: a.translate(value.Content), Style: woxui.TextStyle{Size: palette.Scaled(17), Weight: woxui.FontWeightSemibold}, Color: palette.TextSecondary,
+				}},
+			},
+		}
 	case "textbox", "password", "dirPath":
 		return a.buildFormTextbox(fields, callbacks, palette, index, definition, width, height)
 	case "checkbox":
 		return a.buildFormChoice(fields, callbacks, palette, index, definition, width, height, fields.values[value.Key] == "true", "")
-	case "hotkey", "dictationHotkey":
+	case "hotkey":
 		return a.buildFormHotkey(fields, callbacks, palette, index, definition, width, height)
+	case "pluginHotkey":
+		// Read-only aggregated plugin hotkey row; activation jumps to the
+		// owning plugin's settings page (see openPluginHotkeySettings).
+		return launcherview.FormStaticField(launcherview.FormStaticFieldProps{Width: width, Height: height, Value: value.Content, Kind: "label", Theme: palette})
 	case "app":
 		return a.buildFormApp(fields, callbacks, palette, index, definition, width, height)
 	case "selectAIModel":

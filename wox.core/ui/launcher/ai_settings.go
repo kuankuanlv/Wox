@@ -552,6 +552,7 @@ func validateAISettingsTableRow(definition formDefinition, fields *formFieldsSta
 // saveSettingsTable persists one settings-owned table and rolls the editor back if core rejects it.
 func (a *App) saveSettingsTable(state *formTableEditorState, key, value, previousValue string) {
 	coreValue := value
+	persistKey := key
 	if key == "IgnoredHotkeyApps" {
 		var err error
 		coreValue, err = settingsIgnoredHotkeyAppsCoreJSON(value)
@@ -568,8 +569,18 @@ func (a *App) saveSettingsTable(state *formTableEditorState, key, value, previou
 			return
 		}
 	}
+	if isQueryHotkeysTableKey(key) {
+		// The split Global/App tables share one data key: merge this level
+		// into memory first, then persist the full list.
+		raw := json.RawMessage([]byte(value))
+		a.generalSettings.Update(func(d *settingsData) { applyQueryHotkeysLevelRows(d, raw, queryHotkeyLevelForKey(key)) })
+		if full, err := json.Marshal(a.generalSettings.Data().QueryHotkeys); err == nil {
+			persistKey = "QueryHotkeys"
+			coreValue = string(full)
+		}
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	err := a.services.UpdateGeneralSetting(ctx, a.sessionID, key, coreValue)
+	err := a.services.UpdateGeneralSetting(ctx, a.sessionID, persistKey, coreValue)
 	cancel()
 
 	_ = a.runOnUI("apply settings table save", func() {

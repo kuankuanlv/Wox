@@ -124,7 +124,7 @@ func TestFormTableDisabledColumnBecomesRowStatus(t *testing.T) {
 		t.Fatal("non-checkbox Disabled fields are not row status")
 	}
 
-	definition := formDefinition{Value: formDefinitionValue{Key: "QueryHotkeys", Columns: []formTableColumn{
+	definition := formDefinition{Value: formDefinitionValue{Key: "QueryHotkeysGlobal", Columns: []formTableColumn{
 		{Key: "Name", Type: "text", Label: "Name"},
 		{Key: "Disabled", Type: "checkbox", Label: "i18n:ui_disabled"},
 	}}}
@@ -244,7 +244,7 @@ func TestQueryHotkeyPresetsMatchFlutterDefaults(t *testing.T) {
 		{Type: "textbox", Value: formDefinitionValue{Key: "Width"}},
 	}, map[string]string{"Position": "system_default", "Width": "", "MaxResultCount": ""}, true)
 	app := &App{launcherTableEditor: &formTableEditorState{
-		definition: formDefinition{Value: formDefinitionValue{Key: "QueryHotkeys"}}, rowForm: &fields,
+		definition: formDefinition{Value: formDefinitionValue{Key: "QueryHotkeysGlobal"}}, rowForm: &fields,
 	}}
 
 	app.applyQueryHotkeyPreset(string(queryHotkeyPresetWebPanel))
@@ -294,7 +294,7 @@ func TestQueryHotkeyVariablePickerTriggersAndReplacesText(t *testing.T) {
 	}
 	fields := newFormFieldsState([]formDefinition{{Type: "textbox", Value: formDefinitionValue{Key: "Query"}}}, map[string]string{"Query": ""}, true)
 	app := &App{launcherTableEditor: &formTableEditorState{
-		definition: formDefinition{Value: formDefinitionValue{Key: "QueryHotkeys"}}, rowForm: &fields,
+		definition: formDefinition{Value: formDefinitionValue{Key: "QueryHotkeysGlobal"}}, rowForm: &fields,
 	}}
 
 	app.setFormTableRowText(0, "open {sel")
@@ -380,7 +380,7 @@ func TestQueryVariableBackspaceDeletesWholePlaceholder(t *testing.T) {
 		Type: "textbox", Value: formDefinitionValue{Key: "Query", Tooltip: "i18n:ui_query_hotkeys_query_tooltip"},
 	}}, map[string]string{"Query": "ai translate {wox:selected_text} now"}, true)
 	app := &App{launcherTableEditor: &formTableEditorState{
-		definition: formDefinition{Value: formDefinitionValue{Key: "QueryHotkeys"}}, rowForm: &fields,
+		definition: formDefinition{Value: formDefinitionValue{Key: "QueryHotkeysGlobal"}}, rowForm: &fields,
 	}}
 	fields.editor.SetCaret(len([]rune("ai translate {wox:selected_text}")))
 	if !app.handleFormTableQueryVariableEditorKey(woxui.KeyEvent{Key: woxui.KeyBackspace, Down: true}) {
@@ -412,7 +412,7 @@ func TestQueryVariableArrowsJumpPlaceholder(t *testing.T) {
 		Type: "textbox", Value: formDefinitionValue{Key: "Query", Tooltip: "i18n:ui_query_hotkeys_query_tooltip"},
 	}}, map[string]string{"Query": "{wox:selected_file}"}, true)
 	app := &App{launcherTableEditor: &formTableEditorState{
-		definition: formDefinition{Value: formDefinitionValue{Key: "QueryHotkeys"}}, rowForm: &fields,
+		definition: formDefinition{Value: formDefinitionValue{Key: "QueryHotkeysGlobal"}}, rowForm: &fields,
 	}}
 	fields.editor.SetCaret(len([]rune("{wox:selected_file}")))
 	if !app.handleFormTableQueryVariableEditorKey(woxui.KeyEvent{Key: woxui.KeyArrowLeft, Down: true}) {
@@ -434,7 +434,7 @@ func TestQueryVariableCaretSnapsOutOfPlaceholder(t *testing.T) {
 		Type: "textbox", Value: formDefinitionValue{Key: "Query", Tooltip: "i18n:ui_query_hotkeys_query_tooltip"},
 	}}, map[string]string{"Query": "x{wox:selected_text}y"}, true)
 	app := &App{launcherTableEditor: &formTableEditorState{
-		definition: formDefinition{Value: formDefinitionValue{Key: "QueryHotkeys"}}, rowForm: &fields,
+		definition: formDefinition{Value: formDefinitionValue{Key: "QueryHotkeysGlobal"}}, rowForm: &fields,
 	}}
 	fields.editor.SetCaret(3)
 	app.snapFormTableQueryVariableSelection()
@@ -448,7 +448,7 @@ func TestQueryVariablePartialSelectionDeletesWholePlaceholder(t *testing.T) {
 		Type: "textbox", Value: formDefinitionValue{Key: "Query", Tooltip: "i18n:ui_query_hotkeys_query_tooltip"},
 	}}, map[string]string{"Query": "keep {wox:selected_text} tail"}, true)
 	app := &App{launcherTableEditor: &formTableEditorState{
-		definition: formDefinition{Value: formDefinitionValue{Key: "QueryHotkeys"}}, rowForm: &fields,
+		definition: formDefinition{Value: formDefinitionValue{Key: "QueryHotkeysGlobal"}}, rowForm: &fields,
 	}}
 	start := strings.Index(fields.values["Query"], "selected")
 	fields.editor.SetSelection(start, start+8)
@@ -465,7 +465,7 @@ func TestQueryVariableIncompletePlaceholderStillDeletesByCharacter(t *testing.T)
 		Type: "textbox", Value: formDefinitionValue{Key: "Query", Tooltip: "i18n:ui_query_hotkeys_query_tooltip"},
 	}}, map[string]string{"Query": "open {wox:selected_"}, true)
 	app := &App{launcherTableEditor: &formTableEditorState{
-		definition: formDefinition{Value: formDefinitionValue{Key: "QueryHotkeys"}}, rowForm: &fields,
+		definition: formDefinition{Value: formDefinitionValue{Key: "QueryHotkeysGlobal"}}, rowForm: &fields,
 	}}
 	fields.editor.SetCaret(len([]rune("open {wox:selected_")))
 	if app.handleFormTableQueryVariableEditorKey(woxui.KeyEvent{Key: woxui.KeyBackspace, Down: true}) {
@@ -771,8 +771,8 @@ func TestReplaceQueryHotkeyVariablesForTestUsesSampleValues(t *testing.T) {
 // TestQueryValuedColumnsOfferQueryTest guards the shared test button that query hotkeys,
 // query aliases and tray queries all rely on to preview the edited query.
 func TestQueryValuedColumnsOfferQueryTest(t *testing.T) {
-	forms := []formFieldsState{newHotkeySettingsForm(settingsData{}), newGeneralQuerySettingsForm(settingsData{})}
-	tables := map[string]bool{"QueryHotkeys": false, "QueryAliases": false, "TrayQueries": false}
+	forms := []formFieldsState{newHotkeySettingsForm(settingsData{}, nil), newGeneralQuerySettingsForm(settingsData{})}
+	tables := map[string]bool{"QueryHotkeysGlobal": false, "QueryHotkeysApp": false, "QueryAliases": false, "TrayQueries": false}
 	for _, form := range forms {
 		for _, definition := range form.definitions {
 			if _, tracked := tables[definition.Value.Key]; !tracked {
@@ -794,7 +794,7 @@ func TestQueryValuedColumnsOfferQueryTest(t *testing.T) {
 }
 
 func TestResultBindingsTableIsEditOnly(t *testing.T) {
-	form := newHotkeySettingsForm(settingsData{})
+	form := newHotkeySettingsForm(settingsData{}, nil)
 	var definition formDefinition
 	for _, candidate := range form.definitions {
 		if candidate.Value.Key == "ResultBindings" {
@@ -815,10 +815,10 @@ func TestResultBindingsTableIsEditOnly(t *testing.T) {
 }
 
 func TestQueryHotkeyVariablePickerEnterUsesFocusedHost(t *testing.T) {
-	target := newHotkeySettingsForm(settingsData{})
+	target := newHotkeySettingsForm(settingsData{}, nil)
 	definition := formDefinition{}
 	for _, candidate := range target.definitions {
-		if candidate.Value.Key == "QueryHotkeys" {
+		if isQueryHotkeysTableKey(candidate.Value.Key) {
 			definition = candidate
 			break
 		}
@@ -924,7 +924,7 @@ func TestQueryHotkeyVariablePickerEnterUsesFocusedHost(t *testing.T) {
 }
 
 func TestQueryHotkeyRowNormalizesNumericFieldsForCore(t *testing.T) {
-	definition := formDefinition{Value: formDefinitionValue{Key: "QueryHotkeys", Columns: []formTableColumn{
+	definition := formDefinition{Value: formDefinitionValue{Key: "QueryHotkeysGlobal", Columns: []formTableColumn{
 		{Key: "Width", Type: "text", EmptyAsZero: true, Validators: optionalIntegerValidators(false, 0, 0, "")},
 		{Key: "MaxResultCount", Type: "text", EmptyAsZero: true, Validators: optionalIntegerValidators(true, 5, 15, "i18n:ui_query_hotkeys_max_result_count_range_error")},
 	}}}
@@ -940,7 +940,7 @@ func TestQueryHotkeyRowNormalizesNumericFieldsForCore(t *testing.T) {
 }
 
 func TestQueryHotkeyOptionalMaxResultCountZeroIsValid(t *testing.T) {
-	definition := formDefinition{Value: formDefinitionValue{Key: "QueryHotkeys", Columns: []formTableColumn{
+	definition := formDefinition{Value: formDefinitionValue{Key: "QueryHotkeysGlobal", Columns: []formTableColumn{
 		{Key: "Name", Type: "text"},
 		{Key: "Hotkey", Type: "hotkey"},
 		{Key: "Query", Type: "queryHotkeyQuery"},

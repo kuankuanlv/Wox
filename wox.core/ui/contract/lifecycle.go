@@ -18,4 +18,5 @@ type LifecycleServices interface {
 	FocusLost(ctx context.Context, sessionID string) error
 	SettingViewChanged(ctx context.Context, sessionID string, inSettingView bool) error
 	OnboardingViewChanged(ctx context.Context, sessionID string, inOnboardingView bool) error
+	ExitApp(ctx context.Context, sessionID string) error
 }

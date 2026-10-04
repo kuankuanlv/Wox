@@ -217,7 +217,7 @@ func handleFormEditorKey(editor formEditingController, definition formDefinition
 }
 
 func formDefinitionFocusable(definition formDefinition) bool {
-	return formDefinitionTextEditable(definition) || definition.Type == "checkbox" || definition.Type == "select" || definition.Type == "selectAIModel" || definition.Type == "hotkey" || definition.Type == "dictationHotkey" || definition.Type == "app" || definition.Type == "table" || definition.Type == "dictationModel" || definition.Type == "ocrModel" || definition.Type == "fileIndexService"
+	return formDefinitionTextEditable(definition) || definition.Type == "checkbox" || definition.Type == "select" || definition.Type == "selectAIModel" || definition.Type == "hotkey" || definition.Type == "pluginHotkey" || definition.Type == "app" || definition.Type == "table" || definition.Type == "dictationModel" || definition.Type == "ocrModel" || definition.Type == "fileIndexService"
 }
 
 func formDefinitionTextEditable(definition formDefinition) bool {
@@ -291,7 +291,7 @@ func (a *App) openFormAction(result queryResult, action resultAction) {
 	// keypress is captured without clicking the recorder.
 	if state.focused >= 0 && state.focused < len(state.definitions) {
 		switch state.definitions[state.focused].Type {
-		case "hotkey", "dictationHotkey":
+		case "hotkey":
 			a.recordActionFormHotkey(state.focused)
 		}
 	}
@@ -357,7 +357,7 @@ func (a *App) onFormKey(event woxui.KeyEvent) bool {
 		a.submitFormAction()
 		return true
 	}
-	if fieldType == "hotkey" || fieldType == "dictationHotkey" {
+	if fieldType == "hotkey" {
 		// Leave recordable combos to the recorder after Save has had a chance.
 		return false
 	}
@@ -420,7 +420,7 @@ func (a *App) onFormKey(event woxui.KeyEvent) bool {
 			a.editFormKey(event)
 		} else if fieldType == "table" {
 			a.openActionFormTable(focused)
-		} else if fieldType == "hotkey" || fieldType == "dictationHotkey" {
+		} else if fieldType == "hotkey" {
 			// Enter finishes an active recorder; do not treat a follow-up Enter as
 			// "start recording again" or the first confirmation appears to do nothing.
 			if event.Key == woxui.KeySpace {
@@ -504,13 +504,10 @@ func (a *App) recordActionFormHotkey(index int) {
 		return
 	}
 	definition := a.form.definitions[index]
-	if definition.Type != "hotkey" && definition.Type != "dictationHotkey" {
+	if definition.Type != "hotkey" {
 		return
 	}
 	kinds := defaultHotkeyRecordingKinds
-	if definition.Type == "dictationHotkey" {
-		kinds = dictationHotkeyRecordingKinds
-	}
 	a.startHotkeyRecording("action-form", &a.form.formFieldsState, index, "", kinds, a.onFormKey)
 }
 

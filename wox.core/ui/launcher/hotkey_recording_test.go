@@ -384,10 +384,10 @@ func TestActionHotkeyRecordingOnlyAllowsNormalCombos(t *testing.T) {
 	defer app.cancel()
 	app.settingsOpen = true
 	app.settingTab = "hotkey"
-	form := newHotkeySettingsForm(settingsData{})
+	form := newHotkeySettingsForm(settingsData{}, nil)
 	app.hotkeySettings.SetForm(&form)
 	for index, definition := range form.definitions {
-		if definition.Value.Key == "ActionPanelHotkey" {
+		if definition.Value.Key == builtinHotkeyPrefix+builtinHotkeyActionPanel {
 			app.recordHotkeySettingsField(index)
 			break
 		}
@@ -410,7 +410,7 @@ func TestMainHotkeyRecordingAllowsWindowsKeyOnlyOnWindows(t *testing.T) {
 	defer app.cancel()
 	app.settingsOpen = true
 	app.settingTab = "hotkey"
-	form := newHotkeySettingsForm(settingsData{})
+	form := newHotkeySettingsForm(settingsData{}, nil)
 	app.hotkeySettings.SetForm(&form)
 	for index, definition := range form.definitions {
 		if definition.Value.Key == "MainHotkey" {

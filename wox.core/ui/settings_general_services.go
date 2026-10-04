@@ -39,6 +39,7 @@ func (s *CoreServices) GeneralSettings(ctx context.Context, sessionID string) (c
 		MainHotkeyRegistrationError:        GetUIManager().mainHotkeyRegistrationErrorKey(),
 		SelectionHotkey:                    woxSetting.SelectionHotkey.Get(),
 		ActionPanelHotkey:                  woxSetting.ActionPanelHotkey.Get(),
+		BuiltinHotkeyOverrides:             woxSetting.BuiltinHotkeyOverrides.Get(),
 		IgnoreHotkeysOnFullscreen:          woxSetting.IgnoreHotkeysOnFullscreen.Get(),
 		FullscreenDetectionSupported:       window.SupportsActiveWindowFullscreen(),
 		IgnoredHotkeyApps:                  append([]setting.IgnoredHotkeyApp(nil), woxSetting.IgnoredHotkeyApps.Get()...),
@@ -141,6 +142,20 @@ func (s *CoreServices) UpdateGeneralSetting(ctx context.Context, sessionID strin
 		}
 		GetUIManager().PostSettingUpdate(ctx, key, updatedValue)
 		return privacy.RefreshPreservedSettings(woxSetting)
+	}
+	if strings.HasPrefix(key, "BuiltinHotkey.") {
+		id := strings.TrimPrefix(key, "BuiltinHotkey.")
+		overrides := map[string]string{}
+		for overrideID, overrideValue := range woxSetting.BuiltinHotkeyOverrides.Get() {
+			overrides[overrideID] = overrideValue
+		}
+		if strings.TrimSpace(value) == "" {
+			delete(overrides, id)
+		} else {
+			overrides[id] = value
+		}
+		woxSetting.BuiltinHotkeyOverrides.Set(overrides)
+		return nil
 	}
 
 	boolValue, _ := strconv.ParseBool(value)

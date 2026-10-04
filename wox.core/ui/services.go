@@ -95,6 +95,12 @@ func (s *CoreServices) Ready(ctx context.Context, sessionID string) error {
 	return nil
 }
 
+// ExitApp quits the application through the same once-only teardown as the tray menu.
+func (s *CoreServices) ExitApp(ctx context.Context, _ string) error {
+	exitApplication(ctx)
+	return nil
+}
+
 // RegisterInstance makes a secondary launcher addressable by its UI session.
 func (s *CoreServices) RegisterInstance(_ context.Context, view contract.View) error {
 	if view == nil || view.SessionID() == "" {
