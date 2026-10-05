@@ -303,6 +303,11 @@ const (
 	// tells the GUI to complete the bare keyword to "keyword + space" on Enter.
 	// Core only produces this row; the Enter-to-complete interaction lives in GUI.
 	QueryResultTitleTagKindKuankuanlvParameterHint = "kuankuanlv_parameter_hint"
+	// QueryResultTitleTagKindKuankuanlvCandidate marks a core-owned keyword
+	// candidate row (Phase 1 of the main search flow). Entering it confirms the
+	// keyword: the confirm action records keyword usage and issues
+	// ChangeQuery(keyword + " ") to enter the plugin's parameter-mode query.
+	QueryResultTitleTagKindKuankuanlvCandidate = "kuankuanlv_candidate"
 )
 
 // kuankuanlvParameterHintScoreKey is the internal (non-UI) stable identity of the

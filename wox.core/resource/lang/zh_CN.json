@@ -3375,5 +3375,8 @@
   "ui_theme_material_brightness": "工具栏 · 模糊亮度（0–2）",
   "ui_theme_material_saturation": "工具栏 · 模糊饱和度（0–2）",
   "ui_theme_editor_invalid_material": "请输入显示范围内的数字。",
-  "ui_theme_editor_chrome_help_linux": "自定义窗口边框和圆角可与系统磨玻璃共存。桌面不支持磨玻璃时，半透明窗口背景会改为不透明。应用内模糊不受影响。"
+  "ui_theme_editor_chrome_help_linux": "自定义窗口边框和圆角可与系统磨玻璃共存。桌面不支持磨玻璃时，半透明窗口背景会改为不透明。应用内模糊不受影响。",
+  "kuankuanlv_candidate_tag": "候选",
+  "kuankuanlv_candidate_confirm_action": "确认并进入参数模式",
+  "kuankuanlv_candidate_tag_tooltip": "按下 Enter 确认该关键词，随后可继续输入参数"
 }

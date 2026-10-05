@@ -3375,5 +3375,8 @@
   "ui_theme_material_brightness": "Toolbar · blur brightness (0–2)",
   "ui_theme_material_saturation": "Toolbar · blur saturation (0–2)",
   "ui_theme_editor_invalid_material": "Enter a number within the displayed range.",
-  "ui_theme_editor_chrome_help_linux": "Custom window borders and corners can retain system background blur. If the desktop does not support blur, translucent window backgrounds become opaque. In-app blur is unaffected."
+  "ui_theme_editor_chrome_help_linux": "Custom window borders and corners can retain system background blur. If the desktop does not support blur, translucent window backgrounds become opaque. In-app blur is unaffected.",
+  "kuankuanlv_candidate_tag": "candidate",
+  "kuankuanlv_candidate_confirm_action": "Confirm and enter parameter mode",
+  "kuankuanlv_candidate_tag_tooltip": "Press Enter to confirm this keyword, then continue typing parameters"
 }

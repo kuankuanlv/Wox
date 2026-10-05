@@ -56,7 +56,14 @@ const (
 	globalQueryPluginScoreLimit  = 200
 	keywordMatchBoost            = 50000
 	fileSearchPluginID           = "979d6363-025a-4f51-88d3-0b04e9dc56bf"
-
+	// kuankuanlvCandidateConfirmActionID identifies the core-owned confirm action
+	// attached to keyword candidate rows. Executing it records keyword usage and
+	// issues ChangeQuery(keyword + " ") to enter the plugin's parameter mode.
+	kuankuanlvCandidateConfirmActionID = "kuankuanlv_candidate_confirm"
+	// kuankuanlvCandidateScoreKeyPrefix is the stable ScoreKey prefix of keyword
+	// candidate rows; it feeds both the actioned-result self-learning and the
+	// kw-level MRU identity.
+	kuankuanlvCandidateScoreKeyPrefix = "kuankuanlv_candidate:"
 )
 
 type debounceTimer struct {
@@ -94,6 +101,10 @@ type queryPluginJob struct {
 	intervalMs int
 	// aliasRestore is the core job that restores result-alias matches.
 	aliasRestore bool
+	// candidateOnly means the job only emits keyword candidate rows (Phase 1 of
+	// the main search flow): the plugin is never woken up and no query() runs
+	// until the user confirms a candidate with Enter.
+	candidateOnly bool
 }
 
 // QueryExecution exposes one planned query run to the UI pipeline without leaking scheduler internals.
@@ -4224,6 +4235,9 @@ func (m *Manager) buildQueryPlan(ctx context.Context, query Query) (jobs []query
 
 		supportsDebounce := pluginInstance.Metadata.IsSupportFeature(MetadataFeatureDebounce)
 		job := queryPluginJob{pluginInstance: pluginInstance, blocksFallback: !supportsDebounce}
+		if isBareKeywordQuery(query, pluginInstance) {
+			job.candidateOnly = true
+		}
 		// Every keyword hit (exact or prefix) runs the plugin's query directly;
 		// the result list shows the plugin's results, not a plugin entry card.
 		if supportsDebounce {
@@ -4353,6 +4367,10 @@ func (e *queryExecution) replaceDebouncedJob(job queryPluginJob) {
 func (e *queryExecution) runPluginJob(job queryPluginJob) {
 	pluginInstance := job.pluginInstance
 	pluginLabel := queryDiagnosticPluginLabel(pluginInstance)
+	if job.candidateOnly {
+		e.runKeywordCandidateJob(job)
+		return
+	}
 	util.Go(e.ctx, fmt.Sprintf("[%s] parallel query", pluginInstance.GetName(e.ctx)), func() {
 		jobStart := util.GetSystemTimestamp()
 		jobTimingStart := time.Now()
@@ -4430,6 +4448,184 @@ func (e *queryExecution) runPluginJob(job queryPluginJob) {
 		}
 		e.tracker.finishJob(job.blocksFallback)
 	})
+}
+
+// runKeywordCandidateJob emits Phase 1 keyword candidate rows for one plugin.
+// It never wakes the plugin process and never calls query(): candidates are
+// built purely from metadata so the confirm action can later run the real query.
+func (e *queryExecution) runKeywordCandidateJob(job queryPluginJob) {
+	pluginInstance := job.pluginInstance
+	pluginLabel := queryDiagnosticPluginLabel(pluginInstance)
+	util.Go(e.ctx, fmt.Sprintf("[%s] keyword candidate", pluginInstance.GetName(e.ctx)), func() {
+		start := util.GetSystemTimestamp()
+		candidates := e.manager.buildKeywordCandidateResults(e.ctx, pluginInstance, e.query, e.query.TriggerKeyword)
+		for i := range candidates {
+			e.manager.storeQueryResult(e.ctx, pluginInstance, e.query, QueryLayout{}, candidates[i], "", aliasMatchNone)
+		}
+		if len(candidates) > 0 {
+			response := QueryResponse{Results: candidates}
+			e.resultsChan <- response.ToUI()
+		}
+		if tracker := timetracking.New("keyword_candidate_done"); tracker.Enabled() {
+			tracker.SetRawString("queryId", e.query.Id)
+			tracker.SetRawString("plugin", pluginLabel)
+			tracker.SetInt("resultCount", len(candidates))
+			tracker.SetInt64("costMs", util.GetSystemTimestamp()-start)
+			tracker.Log(e.ctx)
+		}
+		e.tracker.finishJob(job.blocksFallback)
+	}, func() {
+		logger.Warn(e.ctx, fmt.Sprintf("<%s> keyword candidate goroutine recovered, force finishing tracker", pluginInstance.GetName(e.ctx)))
+		e.tracker.finishJob(job.blocksFallback)
+	})
+}
+
+// isBareKeywordQuery decides the Phase 1 keyword-candidate channel of the
+// Kuankuanlv main search flow: a bare keyword (no space typed yet) only emits
+// candidate rows instead of running the plugin's query directly.
+// "uuid x" (space-separated parameter), commands, scope and selection queries
+// stay on the immediate path; wildcard "*" plugins keep computing in real time
+// and are excluded from the candidate channel.
+func isBareKeywordQuery(query Query, pluginInstance *Instance) bool {
+	if pluginInstance == nil {
+		return false
+	}
+	return query.Type == QueryTypeInput && !query.HasScope() &&
+		query.TriggerKeyword != "" && query.Command == "" &&
+		!strings.Contains(query.RawQuery, " ") &&
+		!lo.Contains(pluginInstance.GetTriggerKeywords(), "*")
+}
+
+// newKeywordCandidateResult builds one core-owned candidate row for a
+// registered keyword. It is a pure constructor: the caller supplies the
+// self-learning score so the shape is unit-testable without a setting manager.
+func (m *Manager) newKeywordCandidateResult(ctx context.Context, pluginInstance *Instance, pluginName string, kw string, score int64) QueryResult {
+	scoreKey := kuankuanlvCandidateScoreKeyPrefix + pluginInstance.Metadata.Id + ":" + kw
+	return QueryResult{
+		Id:       fmt.Sprintf("kkc_%s_%s", pluginInstance.Metadata.Id, kw),
+		Title:    kw,
+		SubTitle: pluginName,
+		Group:    pluginName,
+		ScoreKey: scoreKey,
+		Score:    score,
+		Icon:     m.pluginCandidateIcon(ctx, pluginInstance),
+		TitleTags: []QueryResultTitleTag{{
+			Text:    i18n.GetI18nManager().TranslateWox(ctx, "kuankuanlv_candidate_tag"),
+			Kind:    QueryResultTitleTagKindKuankuanlvCandidate,
+			Tooltip: "i18n:kuankuanlv_candidate_tag_tooltip",
+		}},
+		Actions: []QueryResultAction{{
+			Id:                     kuankuanlvCandidateConfirmActionID,
+			Name:                   i18n.GetI18nManager().TranslateWox(ctx, "kuankuanlv_candidate_confirm_action"),
+			IsDefault:              true,
+			PreventHideAfterAction: true,
+			Action: func(ctx context.Context, actionContext ActionContext) {
+				m.confirmKeywordCandidate(ctx, pluginInstance, kw)
+			},
+		}},
+	}
+}
+
+// buildKeywordCandidateResults builds one candidate row per registered keyword
+// that has the typed prefix as a prefix (case-insensitive, "*" excluded). The
+// row is core-owned: its ScoreKey feeds actioned-result self-learning, its
+// confirm action records kw-level usage and enters the plugin's parameter mode.
+func (m *Manager) buildKeywordCandidateResults(ctx context.Context, pluginInstance *Instance, query Query, prefixWord string) []QueryResult {
+	if pluginInstance == nil || prefixWord == "" {
+		return nil
+	}
+	prefixLower := strings.ToLower(prefixWord)
+	pluginName := pluginInstance.GetName(ctx)
+	var candidates []QueryResult
+	for _, kw := range pluginInstance.GetTriggerKeywords() {
+		if !kuankuanlvCandidateKeywordMatches(kw, prefixLower) {
+			continue
+		}
+		scoreKey := kuankuanlvCandidateScoreKeyPrefix + pluginInstance.Metadata.Id + ":" + kw
+		score := m.calculateResultScore(ctx, pluginInstance.Metadata.Id, QueryResult{ScoreKey: scoreKey}, query.RawQuery)
+		candidates = append(candidates, m.newKeywordCandidateResult(ctx, pluginInstance, pluginName, kw, score))
+	}
+	return candidates
+}
+
+// kuankuanlvCandidateKeywordMatches is the pure Phase 1 candidate selector:
+// the typed prefix (lowercased) must be a prefix of a non-wildcard keyword.
+func kuankuanlvCandidateKeywordMatches(kw string, prefixLower string) bool {
+	return kw != "*" && strings.HasPrefix(strings.ToLower(kw), prefixLower)
+}
+
+func (m *Manager) pluginCandidateIcon(ctx context.Context, pluginInstance *Instance) common.WoxImage {
+	iconImg, err := common.ParseWoxImage(pluginInstance.Metadata.Icon)
+	if err != nil {
+		return common.WoxImage{}
+	}
+	converted := pluginInstance.ConvertIcon(ctx, iconImg)
+	return converted
+}
+
+// confirmKeywordCandidate runs when the user presses Enter on a keyword
+// candidate row: it records kw-level usage (self-learning + kw MRU) and then
+// issues ChangeQuery("keyword ") so the plugin enters its parameter-mode query
+// (parameter hint for parameterized plugins, direct results otherwise).
+func (m *Manager) confirmKeywordCandidate(ctx context.Context, pluginInstance *Instance, kw string) {
+	if pluginInstance == nil {
+		return
+	}
+	scoreKey := kuankuanlvCandidateScoreKeyPrefix + pluginInstance.Metadata.Id + ":" + kw
+	pluginName := pluginInstance.GetName(ctx)
+	candidateResult := QueryResult{Title: kw, SubTitle: pluginName, ScoreKey: scoreKey}
+	resultHash := resultScoreHash(pluginInstance.Metadata.Id, candidateResult)
+
+	setting.GetSettingManager().AddActionedResultByHash(ctx, resultHash, kw)
+	if err := setting.GetSettingManager().AddMRUItem(ctx, setting.MRUItem{
+		Hash:     string(resultHash),
+		PluginID: pluginInstance.Metadata.Id,
+		Title:    kw,
+		SubTitle: pluginName,
+		Icon:     m.pluginCandidateIcon(ctx, pluginInstance),
+	}); err != nil {
+		logger.Error(ctx, fmt.Sprintf("[%s] failed to record keyword MRU: %s", pluginName, err.Error()))
+	}
+
+	m.GetUI().ChangeQuery(ctx, common.PlainQuery{QueryType: "input", QueryText: kw + " "})
+}
+
+// isPluginKeyword reports whether kw is one of the plugin's registered keywords
+// (wildcard "*" excluded). It identifies kw-level MRU rows during start-page
+// restore: a stored MRU item whose Title matches a registered keyword is a
+// core-owned keyword candidate, not a plugin-restored result.
+func (m *Manager) isPluginKeyword(pluginInstance *Instance, kw string) bool {
+	if pluginInstance == nil || kw == "" {
+		return false
+	}
+	for _, k := range pluginInstance.GetTriggerKeywords() {
+		if k != "*" && k == kw {
+			return true
+		}
+	}
+	return false
+}
+
+// restoreKeywordCandidate rebuilds a Phase 1 keyword candidate row from a
+// kw-level MRU item. Candidates are metadata-owned, so no plugin restore
+// callback is involved; the stored usage score is preserved for ordering.
+func (m *Manager) restoreKeywordCandidate(ctx context.Context, pluginInstance *Instance, query Query, item setting.MRUItem) *QueryResult {
+	candidates := m.buildKeywordCandidateResults(ctx, pluginInstance, query, item.Title)
+	for i := range candidates {
+		if candidates[i].Title != item.Title {
+			continue
+		}
+		candidates[i].Score = item.Score
+		candidateTags := candidates[i].TitleTags
+		polished := m.polishResultWithSource(ctx, pluginInstance, query, QueryLayout{}, candidates[i], item.Hash, aliasMatchNone)
+		// polish clears TitleTags on rows without a result binding; re-attach the
+		// core-owned candidate chip so the start page reads consistently.
+		if len(polished.TitleTags) == 0 {
+			polished.TitleTags = candidateTags
+		}
+		return &polished
+	}
+	return nil
 }
 
 func (m *Manager) QuerySilent(ctx context.Context, query Query) bool {
@@ -5214,6 +5410,15 @@ func (m *Manager) QueryMRU(ctx context.Context, sessionId string, queryId string
 		pluginInstance := m.getPluginInstance(item.PluginID)
 		if pluginInstance == nil {
 			util.GetLogger().Debug(ctx, fmt.Sprintf("plugin not found, skip restore mru item: %s", item.Title))
+			continue
+		}
+		// Kuankuanlv kw-level MRU: a stored item whose Title is one of the
+		// plugin's registered keywords is a core-owned keyword candidate, restored
+		// directly from metadata without waking the plugin.
+		if m.isPluginKeyword(pluginInstance, item.Title) {
+			if restoredCandidate := m.restoreKeywordCandidate(ctx, pluginInstance, query, item); restoredCandidate != nil {
+				results = append(results, restoredCandidate.ToUI())
+			}
 			continue
 		}
 		if !pluginInstance.Metadata.IsSupportFeature(MetadataFeatureMRU) {
