@@ -18,152 +18,13 @@ import (
 	"wox/util/filesearch"
 )
 
-func TestUrlPlugin(t *testing.T) {
-	suite := NewTestSuite(t)
-
-	tests := []QueryTest{
-		{
-			Name:           "Domain only",
-			Query:          "google.com",
-			ExpectedTitle:  "google.com",
-			ExpectedAction: "Open",
-		},
-		{
-			Name:           "With https",
-			Query:          "https://www.google.com",
-			ExpectedTitle:  "https://www.google.com",
-			ExpectedAction: "Open",
-		},
-		{
-			Name:           "With path",
-			Query:          "github.com/Wox-launcher/Wox",
-			ExpectedTitle:  "github.com/Wox-launcher/Wox",
-			ExpectedAction: "Open",
-		},
-		{
-			Name:           "With query parameters",
-			Query:          "google.com/search?q=wox",
-			ExpectedTitle:  "google.com/search?q=wox",
-			ExpectedAction: "Open",
-		},
-	}
-
-	suite.RunQueryTests(tests)
-}
-
-func TestSystemPlugin(t *testing.T) {
-	suite := NewTestSuite(t)
-
-	tests := []QueryTest{
-		{
-			Name:           "Lock command",
-			Query:          "lock",
-			ExpectedTitle:  "Lock PC",
-			ExpectedAction: "Execute",
-		},
-		{
-			Name:           "Settings command",
-			Query:          "settings",
-			ExpectedTitle:  "Open Wox Settings",
-			ExpectedAction: "Execute",
-		},
-		{
-			Name:           "Empty trash command",
-			Query:          "trash",
-			ExpectedTitle:  "Empty Trash",
-			ExpectedAction: "Execute",
-		},
-		{
-			Name:           "Exit command",
-			Query:          "exit",
-			ExpectedTitle:  "Exit Wox",
-			ExpectedAction: "Execute",
-		},
-	}
-
-	suite.RunQueryTests(tests)
-}
-
-func TestColorPlugin(t *testing.T) {
-	suite := NewTestSuite(t)
-
-	tests := []QueryTest{
-		{
-			Name:           "Global HEX color",
-			Query:          "#FF0042",
-			ExpectedTitle:  "#FF0042",
-			ExpectedAction: "Copy HEX",
-		},
-		{
-			Name:           "Trigger HEX color",
-			Query:          "color #FF0042",
-			ExpectedTitle:  "#FF0042",
-			ExpectedAction: "Copy HEX",
-		},
-	}
-	suite.RunQueryTests(tests)
-
-	ctx := util.WithSessionContext(suite.ctx, fmt.Sprintf("color-plugin-%d", time.Now().UnixNano()))
-	if _, err := runColorQueryForAction(ctx, "color #FF0042"); err != nil {
-		t.Fatalf("color query should record history: %v", err)
-	}
-
-	historyResults, err := runQuery(ctx, "color ")
-	if err != nil {
-		t.Fatalf("color history query failed: %v", err)
-	}
-	historyResult := findResultByTitle(historyResults, "#FF0042")
-	if historyResult == nil {
-		t.Fatalf("color history should include #FF0042, got %#v", historyResults)
-	}
-	if historyResult.Group == "" {
-		t.Fatalf("color history result should be grouped by time")
-	}
-
-	interactiveResults, err := runColorQueryForAction(ctx, "color #FF0042")
-	if err != nil {
-		t.Fatalf("interactive color query failed: %v", err)
-	}
-	interactiveResult := requireResultByTitle(t, interactiveResults, "#FF0042")
-	if len(interactiveResult.Tails) < 3 {
-		t.Fatalf("color result should expose complement and analogous tail swatches, got %#v", interactiveResult.Tails)
-	}
-	for _, expectedTooltip := range []string{"Complement: #00FFBD", "Analogous: #FF00C2", "Analogous: #FF3E00"} {
-		if !hasTailTooltip(interactiveResult.Tails, expectedTooltip) {
-			t.Fatalf("color tail should include tooltip %q, got %#v", expectedTooltip, interactiveResult.Tails)
-		}
-	}
-	submitColorFormAction(t, ctx, interactiveResult, "Name Color", map[string]string{"name": "Brand Red"})
-	executeColorAction(t, ctx, interactiveResult, "Add to Favorites")
-
-	namedResults, err := runQuery(ctx, "color Brand")
-	if err != nil {
-		t.Fatalf("named color query failed: %v", err)
-	}
-	namedResult := findResultByTitle(namedResults, "Brand Red")
-	if namedResult == nil {
-		t.Fatalf("renamed color should be searchable by name, got %#v", namedResults)
-	}
-	if namedResult.Group != "Favorites" {
-		t.Fatalf("favorite color should be in Favorites group, got %q", namedResult.Group)
-	}
-
-	invalidResults, err := runQuery(ctx, "FF00ZZ")
-	if err != nil {
-		t.Fatalf("invalid color query failed: %v", err)
-	}
-	if findResultByTitle(invalidResults, "FF00ZZ") != nil {
-		t.Fatalf("invalid HEX should not return a color result, got %#v", invalidResults)
-	}
-}
-
 func TestPluginTriggerKeywordConflict(t *testing.T) {
 	suite := NewTestSuite(t)
 	ctx := util.WithSessionContext(suite.ctx, fmt.Sprintf("trigger-conflict-%d", time.Now().UnixNano()))
 
-	colorPlugin := findPluginInstance("5e6e7d7a-6af7-4bf0-8f64-2c4b76a2fb36")
-	if colorPlugin == nil {
-		t.Fatal("color plugin instance not found")
+	chatPlugin := findPluginInstance("a9cfd85a-6e53-415c-9d44-68777aa6323d")
+	if chatPlugin == nil {
+		t.Fatal("chat plugin instance not found")
 	}
 	doctorPlugin := findPluginInstance("3e7444df-e8d1-44bc-91d3-12a070efb458")
 	if doctorPlugin == nil {
@@ -177,7 +38,7 @@ func TestPluginTriggerKeywordConflict(t *testing.T) {
 		}
 	})
 
-	if err := doctorPlugin.Setting.TriggerKeywords.Set([]string{"color"}); err != nil {
+	if err := doctorPlugin.Setting.TriggerKeywords.Set([]string{"chat"}); err != nil {
 		t.Fatalf("failed to create trigger keyword conflict: %v", err)
 	}
 
@@ -193,16 +54,16 @@ func TestPluginTriggerKeywordConflict(t *testing.T) {
 		t.Fatalf("doctor should include trigger keyword conflict check, got %#v", checks)
 	}
 	if conflictCheck.Passed {
-		t.Fatalf("doctor should report duplicated color trigger keyword as failed: %#v", conflictCheck)
+		t.Fatalf("doctor should report duplicated chat trigger keyword as failed: %#v", conflictCheck)
 	}
-	if !strings.Contains(conflictCheck.Description, "color") || !strings.Contains(conflictCheck.Description, colorPlugin.GetName(ctx)) || !strings.Contains(conflictCheck.Description, doctorPlugin.GetName(ctx)) {
+	if !strings.Contains(conflictCheck.Description, "chat") || !strings.Contains(conflictCheck.Description, chatPlugin.GetName(ctx)) || !strings.Contains(conflictCheck.Description, doctorPlugin.GetName(ctx)) {
 		t.Fatalf("doctor conflict description should include keyword and plugin names, got %q", conflictCheck.Description)
 	}
 
 	query, queryPlugin, err := plugin.GetPluginManager().NewQuery(ctx, common.PlainQuery{
 		QueryId:   fmt.Sprintf("trigger-conflict-query-%d", time.Now().UnixNano()),
 		QueryType: plugin.QueryTypeInput,
-		QueryText: "color ",
+		QueryText: "chat ",
 	})
 	conflictErr, isConflictErr := plugin.AsTriggerKeywordConflictError(err)
 	if !isConflictErr {
@@ -211,49 +72,31 @@ func TestPluginTriggerKeywordConflict(t *testing.T) {
 	if queryPlugin != nil {
 		t.Fatalf("conflicting query should not be owned by the first matching plugin, got %s", queryPlugin.GetName(ctx))
 	}
-	if query.TriggerKeyword != "color" {
+	if query.TriggerKeyword != "chat" {
 		t.Fatalf("conflicting query should still return parsed trigger keyword, got %q", query.TriggerKeyword)
 	}
-	if conflictErr.Conflict.Keyword != "color" {
-		t.Fatalf("conflict error should carry keyword color, got %#v", conflictErr.Conflict)
+	if conflictErr.Conflict.Keyword != "chat" {
+		t.Fatalf("conflict error should carry keyword chat, got %#v", conflictErr.Conflict)
 	}
 	conflictResponse := plugin.GetPluginManager().BuildTriggerKeywordConflictResponse(ctx, query, conflictErr.Conflict)
 	if conflictResponse.Layout.ResultPreviewWidthRatio == nil || *conflictResponse.Layout.ResultPreviewWidthRatio != 0 {
 		t.Fatalf("conflict response should be preview-only, got %#v", conflictResponse.Layout.ResultPreviewWidthRatio)
 	}
 
-	results, err := runQuery(ctx, "color ")
+	results, err := runQuery(ctx, "chat ")
 	if err != nil {
 		t.Fatalf("conflicting trigger query failed: %v", err)
 	}
-	conflictResult := requireResultByTitle(t, results, "Trigger keyword conflict: color")
-	if !strings.Contains(conflictResult.SubTitle, colorPlugin.GetName(ctx)) || !strings.Contains(conflictResult.SubTitle, doctorPlugin.GetName(ctx)) {
+	conflictResult := requireResultByTitle(t, results, "Trigger keyword conflict: chat")
+	if !strings.Contains(conflictResult.SubTitle, chatPlugin.GetName(ctx)) || !strings.Contains(conflictResult.SubTitle, doctorPlugin.GetName(ctx)) {
 		t.Fatalf("conflict result should list both plugins, got %q", conflictResult.SubTitle)
 	}
 	if conflictResult.Preview.PreviewType != plugin.WoxPreviewTypeTriggerKeywordConflict {
 		t.Fatalf("conflict result should use trigger keyword conflict preview, got %q", conflictResult.Preview.PreviewType)
 	}
-	if !strings.Contains(conflictResult.Preview.PreviewData, doctorPlugin.Metadata.Id) || !strings.Contains(conflictResult.Preview.PreviewData, colorPlugin.Metadata.Id) {
+	if !strings.Contains(conflictResult.Preview.PreviewData, doctorPlugin.Metadata.Id) || !strings.Contains(conflictResult.Preview.PreviewData, chatPlugin.Metadata.Id) {
 		t.Fatalf("conflict preview should include editable plugin keyword data, got %q", conflictResult.Preview.PreviewData)
 	}
-	if findResultByTitle(results, "#FF0042") != nil {
-		t.Fatalf("conflicting trigger query should be blocked before normal plugin results, got %#v", results)
-	}
-}
-
-func TestWebSearchPlugin(t *testing.T) {
-	suite := NewTestSuite(t)
-
-	tests := []QueryTest{
-		{
-			Name:           "Google search",
-			Query:          "g wox launcher",
-			ExpectedTitle:  "Search Google for wox launcher",
-			ExpectedAction: "Search",
-		},
-	}
-
-	suite.RunQueryTests(tests)
 }
 
 func TestFilePlugin_CustomRoots(t *testing.T) {
@@ -1232,56 +1075,6 @@ func hasAction(result plugin.QueryResultUI, expectedAction string) bool {
 	return false
 }
 
-func hasTailTooltip(tails []plugin.QueryResultTail, expectedTooltip string) bool {
-	for _, tail := range tails {
-		if tail.Tooltip == expectedTooltip {
-			return true
-		}
-	}
-	return false
-}
-
-func runColorQueryForAction(ctx context.Context, rawQuery string) ([]plugin.QueryResultUI, error) {
-	queryID := fmt.Sprintf("color-query-%d", time.Now().UnixNano())
-	query, queryPlugin, err := plugin.GetPluginManager().NewQuery(ctx, common.PlainQuery{
-		QueryId:   queryID,
-		QueryType: plugin.QueryTypeInput,
-		QueryText: rawQuery,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	plugin.GetPluginManager().HandleQueryLifecycle(ctx, query, queryPlugin)
-	execution := plugin.GetPluginManager().Query(ctx, query)
-	var allResults []plugin.QueryResultUI
-
-collect:
-	for {
-		select {
-		case response := <-execution.Results:
-			allResults = append(allResults, response.Results...)
-		case <-execution.Done:
-			for {
-				select {
-				case response := <-execution.Results:
-					allResults = append(allResults, response.Results...)
-				default:
-					break collect
-				}
-			}
-		case <-time.After(5 * time.Second):
-			return nil, context.DeadlineExceeded
-		}
-	}
-
-	for i := range allResults {
-		allResults[i].QueryId = queryID
-	}
-
-	return allResults, nil
-}
-
 func findResultByTitle(results []plugin.QueryResultUI, title string) *plugin.QueryResultUI {
 	for i := range results {
 		if results[i].Title == title {
@@ -1299,44 +1092,4 @@ func requireResultByTitle(t *testing.T, results []plugin.QueryResultUI, title st
 		t.Fatalf("expected result title %q, got %#v", title, results)
 	}
 	return *result
-}
-
-func executeColorAction(t *testing.T, ctx context.Context, result plugin.QueryResultUI, actionName string) {
-	t.Helper()
-
-	for _, action := range result.Actions {
-		if action.Name != actionName {
-			continue
-		}
-		sessionID := plugin.GetPluginManager().GetSessionIdByQueryId(result.QueryId)
-		if sessionID == "" || result.QueryId == "" {
-			t.Fatalf("missing cached query info for result %s", result.Id)
-		}
-		if err := plugin.GetPluginManager().ExecuteAction(ctx, sessionID, result.QueryId, result.Id, action.Id); err != nil {
-			t.Fatalf("failed to execute action %q: %v", actionName, err)
-		}
-		return
-	}
-
-	t.Fatalf("action %q not found in %#v", actionName, result.Actions)
-}
-
-func submitColorFormAction(t *testing.T, ctx context.Context, result plugin.QueryResultUI, actionName string, values map[string]string) {
-	t.Helper()
-
-	for _, action := range result.Actions {
-		if action.Name != actionName {
-			continue
-		}
-		sessionID := plugin.GetPluginManager().GetSessionIdByQueryId(result.QueryId)
-		if sessionID == "" || result.QueryId == "" {
-			t.Fatalf("missing cached query info for result %s", result.Id)
-		}
-		if err := plugin.GetPluginManager().SubmitFormAction(ctx, sessionID, result.QueryId, result.Id, action.Id, values); err != nil {
-			t.Fatalf("failed to submit form action %q: %v", actionName, err)
-		}
-		return
-	}
-
-	t.Fatalf("form action %q not found in %#v", actionName, result.Actions)
 }

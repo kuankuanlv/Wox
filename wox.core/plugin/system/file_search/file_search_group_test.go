@@ -16,7 +16,7 @@ func TestFileSearchResultGroupUsesFilesOnGlobalQuery(t *testing.T) {
 func TestFileSearchResultGroupStaysEmptyForTriggeredQuery(t *testing.T) {
 	group, score := fileSearchResultGroup(plugin.Query{
 		Type:           plugin.QueryTypeInput,
-		TriggerKeyword: "f",
+		TriggerKeyword: "file",
 		Search:         "scottqian",
 	})
 	if group != "" || score != 0 {

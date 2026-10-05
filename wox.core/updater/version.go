@@ -1,3 +1,3 @@
 package updater
 
-const CURRENT_VERSION = "2.4.5-kuankuanlv.1"
+const CURRENT_VERSION = "2.4.5-kuankuanlv.3"

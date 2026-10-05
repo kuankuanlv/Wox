@@ -237,11 +237,6 @@ func (a *App) invalidateAllWindows() {
 		_ = onboardingWindow.Invalidate()
 	}
 	a.invalidateChatWindow()
-	for _, controller := range a.noteWindows {
-		if controller.managed != nil {
-			_ = controller.managed.Window().Invalidate()
-		}
-	}
 }
 
 func (a *App) updateSettingsTextInput(enabled bool) {

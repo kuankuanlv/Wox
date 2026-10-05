@@ -44,7 +44,10 @@ func TestScreenshotHistoryImageExtensions(t *testing.T) {
 	}
 }
 
-func TestScreenshotHistoryResultIncludesNotesAction(t *testing.T) {
+// TestScreenshotHistoryResultExcludesNotesAction verifies that after the
+// built-in notes plugin (stage 0 removal) the screenshot history toolbar no
+// longer offers a "save to notes" action.
+func TestScreenshotHistoryResultExcludesNotesAction(t *testing.T) {
 	result := (&ScreenshotPlugin{}).screenshotHistoryResult(screenshotHistoryItem{
 		path:      "/tmp/capture.png",
 		fileName:  "capture.png",
@@ -52,15 +55,10 @@ func TestScreenshotHistoryResultIncludesNotesAction(t *testing.T) {
 		timestamp: 1,
 		ocrText:   "hello",
 	})
-	found := false
 	for _, action := range result.Actions {
 		if action.Name == "i18n:plugin_notes_action_save" {
-			found = true
-			break
+			t.Fatalf("notes action must be removed, actions = %#v", result.Actions)
 		}
-	}
-	if !found {
-		t.Fatalf("screenshot history actions = %#v", result.Actions)
 	}
 }
 

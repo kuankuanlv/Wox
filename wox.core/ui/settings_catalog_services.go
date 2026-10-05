@@ -10,31 +10,24 @@ import (
 	"wox/ai"
 	"wox/common"
 	"wox/plugin"
-	appplugin "wox/plugin/system/app"
 	"wox/setting"
 	"wox/ui/contract"
 	"wox/util"
 	"wox/util/keyboard"
 )
 
-// HotkeyAppCandidates returns platform application identities suitable for exclusion rules.
+// HotkeyAppCandidates returns platform application identities suitable for
+// exclusion rules. The built-in app plugin was removed in the stage-0+
+// externalization batch; the application index will be supplied again by an
+// external app plugin. Until then the list is intentionally empty.
 func (s *CoreServices) HotkeyAppCandidates(ctx context.Context, sessionID string) ([]contract.HotkeyApp, error) {
-	apps := appplugin.GetHotkeyAppCandidates(uiServiceContext(ctx, sessionID))
-	converted := make([]contract.HotkeyApp, len(apps))
-	for index, app := range apps {
-		converted[index] = contract.HotkeyApp{Name: app.Name, Identity: app.Identity, Path: app.Path, Icon: app.Icon}
-	}
-	return converted, nil
+	return []contract.HotkeyApp{}, nil
 }
 
-// IndexedApps returns applications matching the core ignore rule, including distinct shortcuts.
+// IndexedApps returns applications matching the core ignore rule. Same
+// externalization note as HotkeyAppCandidates.
 func (s *CoreServices) IndexedApps(ctx context.Context, sessionID string, pattern string) ([]contract.HotkeyApp, error) {
-	apps := appplugin.GetIndexedApps(uiServiceContext(ctx, sessionID), pattern)
-	converted := make([]contract.HotkeyApp, len(apps))
-	for index, app := range apps {
-		converted[index] = contract.HotkeyApp{Name: app.Name, Identity: app.Identity, Path: app.Path, Icon: app.Icon}
-	}
-	return converted, nil
+	return []contract.HotkeyApp{}, nil
 }
 
 // StartHotkeyRecording activates the strongest recorder supported by the current platform.

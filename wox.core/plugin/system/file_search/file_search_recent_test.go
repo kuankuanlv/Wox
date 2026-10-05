@@ -16,7 +16,7 @@ func TestFileSearchEmptyTriggeredQueryShowsRecentFiles(t *testing.T) {
 
 	response := (&FileSearchPlugin{api: fileSearchToolbarTestAPI{}}).Query(context.Background(), plugin.Query{
 		Type:           plugin.QueryTypeInput,
-		TriggerKeyword: "f",
+		TriggerKeyword: "file",
 	})
 	if len(response.Results) != 2 {
 		t.Fatalf("recent results = %d, want 2", len(response.Results))
@@ -50,7 +50,7 @@ func TestFileSearchRecentQueryHonorsFolderRefinement(t *testing.T) {
 
 	response := (&FileSearchPlugin{api: fileSearchToolbarTestAPI{}}).Query(context.Background(), plugin.Query{
 		Type:           plugin.QueryTypeInput,
-		TriggerKeyword: "f",
+		TriggerKeyword: "file",
 		Refinements:    map[string]string{fileSearchTypeRefinementKey: fileSearchTypeRefinementFolder},
 	})
 	if len(response.Results) != 1 || response.Results[0].SubTitle != folderPath {

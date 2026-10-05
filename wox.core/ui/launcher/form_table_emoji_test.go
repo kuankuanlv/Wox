@@ -22,9 +22,6 @@ func TestOpenFormTableEmojiPickerTargetsIconField(t *testing.T) {
 	if state.emojiPicker.initialEmoji != "📋" {
 		t.Fatalf("emoji picker initial emoji = %q, want 📋", state.emojiPicker.initialEmoji)
 	}
-	if len(app.formTableEmojiSearchEntries) < 5000 {
-		t.Fatalf("emoji picker search catalog count = %d, want at least 5000", len(app.formTableEmojiSearchEntries))
-	}
 
 	app.closeFormTableEmojiPicker()
 	if state.emojiPicker != nil {

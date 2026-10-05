@@ -28,9 +28,16 @@ type formTableEditorState struct {
 	definition formDefinition
 	rows       []map[string]any
 	selected   int
-	rowForm    *formFieldsState
-	rowIndex   int
-	rowBase    map[string]any
+	// rowViewOrder maps the current displayed list position back to the original
+	// row index in rows. The row list is rendered with the same SortColumnKey
+	// ordering as the detail grid, so a tap on displayed-position N must resolve to
+	// the row that actually sits there. Without this mapping a sort that reorders
+	// rows makes selection/edit operate on the wrong row (e.g. two qigeTools
+	// fixed-URL commands silently overwriting each other's Template).
+	rowViewOrder []int
+	rowForm      *formFieldsState
+	rowIndex     int
+	rowBase      map[string]any
 	// rowEditorOnly closes the whole overlay when a row opened directly from an inline table exits.
 	rowEditorOnly     bool
 	status            string
@@ -489,7 +496,14 @@ func (a *App) closeFormTableEditor() {
 func (a *App) selectFormTableRow(index int) {
 	state := a.activeFormTableEditor()
 	if state != nil && state.rowForm == nil && index >= 0 && index < len(state.rows) {
-		state.selected = index
+		// The list renders rows in SortColumnKey order; `index` is a displayed
+		// position. Resolve it back to the underlying row index so selection,
+		// edit and delete all target the row the user actually clicked.
+		selected := index
+		if index < len(state.rowViewOrder) {
+			selected = state.rowViewOrder[index]
+		}
+		state.selected = selected
 		state.deletePending = -1
 		state.deleteDirect = false
 		state.status = ""
@@ -1153,12 +1167,6 @@ func (a *App) saveFormTableRowEdit() {
 		return
 	}
 	if fieldErrors := validateAISettingsTableRow(state.definition, state.rowForm); len(fieldErrors) > 0 {
-		state.fieldErrors = fieldErrors
-		expandFormTableGroupsForErrors(state)
-		a.invalidateFormTableWindow()
-		return
-	}
-	if fieldErrors := a.validateWebSearchTableRow(state.definition, state.rowForm); len(fieldErrors) > 0 {
 		state.fieldErrors = fieldErrors
 		expandFormTableGroupsForErrors(state)
 		a.invalidateFormTableWindow()

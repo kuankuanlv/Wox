@@ -1,15 +1,11 @@
 package launcher
 
 import (
-	"context"
 	"strings"
 	woxcomponent "wox/ui/launcher/component"
 
-	emojiplugin "wox/plugin/system/emoji"
 	launcherview "wox/ui/launcher/view"
 	woxwidget "wox/ui/widget"
-	"wox/util"
-	"wox/util/emojisearch"
 )
 
 // formTableEmojiGroup mirrors Flutter's WoxImageSelector.emojiGroups catalog so
@@ -557,7 +553,6 @@ func (a *App) openFormTableEmojiPicker(index int) {
 	if initialEmoji != "" && !strings.HasPrefix(initialEmoji, "{") {
 		a.rememberFormTableEmoji(initialEmoji)
 	}
-	a.ensureFormTableEmojiSearchEntries()
 	state.emojiPicker = &formTableEmojiPickerState{
 		fieldIndex:   index,
 		initialEmoji: initialEmoji,
@@ -565,25 +560,6 @@ func (a *App) openFormTableEmojiPicker(index int) {
 	clearFormTableRowValidationLocked(state)
 	a.updateFormTableTextInput(true)
 	a.invalidateFormTableWindow()
-}
-
-// ensureFormTableEmojiSearchEntries prepares the plugin catalog once outside the render path.
-func (a *App) ensureFormTableEmojiSearchEntries() {
-	a.formTableEmojiSearchOnce.Do(func() {
-		catalog, err := emojiplugin.LoadCatalog()
-		if err != nil {
-			ctx := a.lifecycleCtx
-			if ctx == nil {
-				ctx = context.Background()
-			}
-			util.GetLogger().Error(ctx, "load emoji picker search catalog: "+err.Error())
-			return
-		}
-		a.formTableEmojiSearchEntries = make([]emojisearch.Entry, len(catalog))
-		for index, entry := range catalog {
-			a.formTableEmojiSearchEntries[index] = emojisearch.Entry{Emoji: entry.Emoji, SearchTerms: entry.SearchTerms}
-		}
-	})
 }
 
 func (a *App) closeFormTableEmojiPicker() {
@@ -651,7 +627,7 @@ func (a *App) buildFormTableEmojiPicker(snapshot *formTableEmojiPickerSnapshot, 
 		Title: a.translate("i18n:ui_select_emoji"), SearchLabel: a.translate("i18n:ui_select_emoji_search"),
 		SearchResultsLabel: a.translate("i18n:ui_select_emoji_search_results"), NoResultsLabel: a.translate("i18n:ui_select_emoji_no_results"),
 		CloseLabel: a.translate("i18n:ui_close"), SearchIcon: a.imageForTint(settingControlIconSource("search"), &iconTint, physicalImageSize(18, imageScale)),
-		Groups: groups, SearchEntries: a.formTableEmojiSearchEntries, InitialEmoji: snapshot.initialEmoji,
+		Groups: groups, InitialEmoji: snapshot.initialEmoji,
 		OnChoose: a.chooseFormTableEmoji, OnCancel: a.closeFormTableEmojiPicker,
 	})
 }

@@ -159,7 +159,7 @@ func expandQueryTextHome(text string) (string, bool) {
 		return text, false
 	}
 	if text == "~" {
-		return home, true
+		return home + "/", true
 	}
 	return home + text[1:], true
 }

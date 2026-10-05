@@ -276,6 +276,28 @@ func hasMCPServerToolsColumn(columns []formTableColumn) bool {
 	return false
 }
 
+// formTableSortedRowIndices returns the original row indices in the order rows
+// should be displayed (SortColumnKey-aware, stable). Both the detail grid and the
+// row-summary list must use this same order so displayed position maps back to the
+// same underlying row everywhere.
+func formTableSortedRowIndices(definition formDefinition, rows []map[string]any) []int {
+	ordered := make([]int, len(rows))
+	for index := range rows {
+		ordered[index] = index
+	}
+	if definition.Value.SortColumnKey != "" {
+		sort.SliceStable(ordered, func(left, right int) bool {
+			leftValue := fmt.Sprint(rows[ordered[left]][definition.Value.SortColumnKey])
+			rightValue := fmt.Sprint(rows[ordered[right]][definition.Value.SortColumnKey])
+			if strings.EqualFold(definition.Value.SortOrder, "desc") {
+				return leftValue > rightValue
+			}
+			return leftValue < rightValue
+		})
+	}
+	return ordered
+}
+
 func (a *App) formTableViewRows(definition formDefinition, columns []formTableColumn, rows []map[string]any, theme woxcomponent.ControlTheme, imageScale float32) []launcherview.FormTableRow {
 	type indexedRow struct {
 		index int
@@ -625,9 +647,26 @@ func formTableRowFieldMarkdown(definition formDefinition) bool {
 }
 
 func (a *App) buildFormTableList(snapshot *formTableEditorSnapshot, palette woxcomponent.ControlTheme, width, height float32) woxwidget.Widget {
-	rows := make([]string, 0, len(snapshot.rows))
-	for _, row := range snapshot.rows {
-		rows = append(rows, a.formTableRowSummary(snapshot.definition, row))
+	// Render the row-summary list in the SAME SortColumnKey order as the detail
+	// grid, and remember the displayed-position -> original-row-index mapping so
+	// taps resolve to the row the user actually sees.
+	viewOrder := formTableSortedRowIndices(snapshot.definition, snapshot.rows)
+	rows := make([]string, 0, len(viewOrder))
+	for _, origIndex := range viewOrder {
+		rows = append(rows, a.formTableRowSummary(snapshot.definition, snapshot.rows[origIndex]))
+	}
+	if state := a.activeFormTableEditor(); state != nil {
+		state.rowViewOrder = viewOrder
+	}
+	selectedViewIndex := -1
+	for viewIndex, origIndex := range viewOrder {
+		if origIndex == snapshot.selected {
+			selectedViewIndex = viewIndex
+			break
+		}
+	}
+	if selectedViewIndex < 0 && snapshot.selected >= 0 {
+		selectedViewIndex = 0
 	}
 	selectedReadOnly := snapshot.selected >= 0 && snapshot.selected < len(snapshot.rows) && formTableSkillRowReadOnly(snapshot.definition, snapshot.rows[snapshot.selected])
 	canEdit := !snapshot.invalid && !snapshot.saving && snapshot.selected >= 0 && snapshot.definition.Value.Key != "AISkills" && !selectedReadOnly
@@ -645,7 +684,7 @@ func (a *App) buildFormTableList(snapshot *formTableEditorSnapshot, palette woxc
 		onAdd = nil
 	}
 	return launcherview.FormTableList(launcherview.FormTableListProps{
-		Width: width, Height: height, Rows: rows, Selected: snapshot.selected,
+		Width: width, Height: height, Rows: rows, Selected: selectedViewIndex,
 		Status: snapshot.status, StatusError: snapshot.invalid, AddLabel: addLabel, DeleteLabel: a.translate("i18n:ui_delete"), CloseLabel: a.translate("i18n:ui_close"),
 		CanAdd: canAdd, CanEdit: canEdit, CanDelete: canDelete, Theme: palette,
 		OnSelect: a.selectFormTableRow,

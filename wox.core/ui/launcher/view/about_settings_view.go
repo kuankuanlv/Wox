@@ -62,6 +62,36 @@ func AboutSettingsView(props AboutSettingsProps) woxwidget.Widget {
 		woxwidget.Container{Height: 40},
 		woxwidget.Align{Width: contentWidth, Height: 32, Horizontal: 0.5, Vertical: 0.5, Child: woxwidget.Flex{Axis: woxwidget.Horizontal, Gap: 30, Children: links}},
 	}
+
+	// kuankuanlv 改动区块：横线分隔 + 标题 + 逐条改动项
+	changeItems := []string{
+		"1. 快捷键注册制重构（全局/应用内分层）",
+		"2. Tab 路径层级补全",
+		"3. 插件系统扩展（kuankuanlv 扩展字段 + InputFilter 准入 + 参数提示）",
+		"4. 主搜索四相位重构（先筛后算 + 自学习）",
+		"5. 内置插件外部化（脚本插件承接）",
+		"6. 结果按插件分组",
+		"7. 自学习偏好收敛 kw 维度",
+		"8. 插件设置表格行序修复",
+		"9. 自动更新默认关闭",
+		"10. cmd+q / cmd+w 快捷键",
+	}
+	changes := []woxwidget.Widget{
+		woxwidget.Container{Height: 20},
+		woxwidget.Container{Width: contentWidth, Height: 1, Color: props.Theme.TextSecondary},
+		woxwidget.Container{Height: 14},
+		woxwidget.Align{Width: contentWidth, Height: 22, Vertical: 0, Child: woxwidget.Text{
+			Value: "基于原仓库 Wox（GPL-3.0）修改，改动项如下",
+			Style: woxui.TextStyle{Size: props.Theme.Scaled(14), Weight: woxui.FontWeightSemibold}, Color: props.Theme.Text,
+		}},
+		woxwidget.Container{Height: 6},
+	}
+	for _, item := range changeItems {
+		changes = append(changes, woxwidget.Align{Width: contentWidth, Height: 20, Vertical: 0, Child: woxwidget.Text{
+			Value: item, Style: woxui.TextStyle{Size: props.Theme.Scaled(12)}, Color: props.Theme.TextSecondary,
+		}})
+	}
+	children = append(children, changes...)
 	if props.Status != "" {
 		children = append(children,
 			woxwidget.Container{Height: 18},

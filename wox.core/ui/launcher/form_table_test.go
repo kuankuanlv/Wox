@@ -739,23 +739,6 @@ func TestQueryVariableChipLabelUsesParameterName(t *testing.T) {
 	}
 }
 
-func TestValidateWebSearchTableRowRejectsUndeclaredTitleParameter(t *testing.T) {
-	fields := newFormFieldsState([]formDefinition{
-		{Type: "textbox", Value: formDefinitionValue{Key: "Title"}},
-		{Type: "textbox", Value: formDefinitionValue{Key: "Urls"}},
-	}, map[string]string{
-		"Title": "Search Google for {wox:parameter?name=query}",
-		"Urls":  "https://www.google.com/search?q={wox:parameter?name=query123}&t={wox:parameter?name=time}",
-	}, true)
-	app := &App{translations: map[string]string{
-		"plugin_websearch_error_unknown_title_variable": "Title can only reference parameters declared in the URLs.",
-	}}
-	errors := app.validateWebSearchTableRow(formDefinition{Value: formDefinitionValue{Key: "webSearches"}}, &fields)
-	if got := errors["Title"]; got != "Title can only reference parameters declared in the URLs." {
-		t.Fatalf("title error = %#v", errors)
-	}
-}
-
 func TestReplaceQueryHotkeyVariablesForTestUsesSampleValues(t *testing.T) {
 	query := "ai translate {wox:selected_text} from {wox:active_browser_url} in {wox:file_explorer_path} file {wox:selected_file}"
 	got := replaceQueryHotkeyVariablesForTest(query)

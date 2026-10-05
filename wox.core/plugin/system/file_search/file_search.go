@@ -18,7 +18,6 @@ import (
 	"wox/common/icons"
 	"wox/plugin"
 	"wox/plugin/system/file_search/indexpolicy"
-	notesplugin "wox/plugin/system/notes"
 	shellplugin "wox/plugin/system/shell"
 	"wox/setting"
 	"wox/setting/definition"
@@ -163,7 +162,7 @@ func (c *FileSearchPlugin) GetMetadata() plugin.Metadata {
 		Icon:          fileIcon.String(),
 		Entry:         "",
 		TriggerKeywords: []string{
-			"f",
+			"file",
 		},
 		SupportedOS: []string{
 			"Windows",
@@ -1203,7 +1202,7 @@ func fileSearchResultTails(item filesearch.SearchResult, recent bool) []plugin.Q
 	return []plugin.QueryResultTail{tail}
 }
 
-// buildFileSearchResultActions keeps folder navigation integrated with the path-browse plugin.
+// buildFileSearchResultActions builds the open / reveal / copy / shell actions for one result.
 func (c *FileSearchPlugin) buildFileSearchResultActions(ctx context.Context, item filesearch.SearchResult) []plugin.QueryResultAction {
 	actions := []plugin.QueryResultAction{
 		{
@@ -1222,20 +1221,7 @@ func (c *FileSearchPlugin) buildFileSearchResultActions(ctx context.Context, ite
 		},
 	}
 
-	if item.IsDir {
-		actions = append(actions, plugin.QueryResultAction{
-			Name:                   "i18n:plugin_folder_enter",
-			Icon:                   icons.Get(icons.ActionOpen),
-			Hotkey:                 util.PrimaryHotkey("enter"),
-			PreventHideAfterAction: true,
-			Action: func(ctx context.Context, actionContext plugin.ActionContext) {
-				c.api.ChangeQuery(ctx, common.PlainQuery{
-					QueryType: plugin.QueryTypeInput,
-					QueryText: ensureFileSearchFolderBrowseQuery(item.Path),
-				})
-			},
-		})
-	} else {
+	if !item.IsDir {
 		actions = append(actions, plugin.QueryResultAction{
 			Name: "i18n:plugin_file_open_containing_folder",
 			Icon: icons.Get(icons.ActionOpenContainingFolder),
@@ -1250,7 +1236,6 @@ func (c *FileSearchPlugin) buildFileSearchResultActions(ctx context.Context, ite
 	}
 	actions = append(actions, c.buildCopyPathAction(item.Path), c.buildCopyNameAction(item))
 	actions = append(actions, c.buildExecuteCommandAtLocationAction(item))
-	actions = append(actions, notesplugin.CreateNoteAction(c.api, "", "", item.Path))
 
 	actions = append(actions, plugin.QueryResultAction{
 		Name: "i18n:plugin_clipboard_delete",
@@ -1381,13 +1366,6 @@ func fileSearchCopyName(item filesearch.SearchResult) string {
 // buildExecuteCommandAtLocationAction hands the selected filesystem location to Shell without exposing it in the visible query.
 func (c *FileSearchPlugin) buildExecuteCommandAtLocationAction(item filesearch.SearchResult) plugin.QueryResultAction {
 	return shellplugin.OpenAtDirectoryAction(c.api, item.Path, item.IsDir)
-}
-
-func ensureFileSearchFolderBrowseQuery(folderPath string) string {
-	if strings.HasSuffix(folderPath, "/") || strings.HasSuffix(folderPath, `\`) {
-		return folderPath
-	}
-	return folderPath + string(os.PathSeparator)
 }
 
 func (c *FileSearchPlugin) buildIndexFilesAction() plugin.QueryResultAction {

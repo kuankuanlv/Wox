@@ -47,33 +47,15 @@ import (
 	// import all system plugins
 	_ "wox/plugin/system"
 
-	_ "wox/plugin/system/sys"
-
-	_ "wox/plugin/system/app"
-
-	_ "wox/plugin/system/calculator"
-
-	_ "wox/plugin/system/converter"
-
 	_ "wox/plugin/system/clipboard"
 
-	_ "wox/plugin/system/mediaplayer"
-
-	_ "wox/plugin/system/notes"
-
 	_ "wox/plugin/system/shell"
-
-	_ "wox/plugin/system/emoji"
 
 	_ "wox/plugin/system/quickjump"
 
 	_ "wox/plugin/system/browser_bookmark"
 
-	_ "wox/plugin/system/websearch"
-
 	_ "wox/plugin/system/file_search"
-
-	_ "wox/plugin/system/glance"
 
 	_ "wox/plugin/system/window_manager"
 

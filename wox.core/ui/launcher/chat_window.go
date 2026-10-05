@@ -13,6 +13,7 @@ import (
 	woxui "wox/ui/runtime"
 	woxwidget "wox/ui/widget"
 	"wox/util"
+	"wox/util/screen"
 )
 
 const (
@@ -373,7 +374,7 @@ func (a *App) maximizeChatWindowOn(window *woxui.Window) {
 	if !a.chatWindowMaximized || a.chatWindowRestoreFrame.Width <= 0 || a.chatWindowRestoreFrame.Height <= 0 {
 		a.chatWindowRestoreFrame = bounds
 	}
-	target := notesMaximizeBounds(bounds)
+	target := maximizeWorkAreaBounds(bounds)
 	if err := window.SetBounds(target); err != nil {
 		return
 	}
@@ -413,7 +414,7 @@ func (a *App) syncChatWindowMaximizedFromFrame(size woxui.Size) {
 	if current.Width <= 0 || current.Height <= 0 {
 		current.Width, current.Height = size.Width, size.Height
 	}
-	target := notesMaximizeBounds(current)
+	target := maximizeWorkAreaBounds(current)
 	if abs32(size.Width-target.Width) <= 4 && abs32(size.Height-target.Height) <= 4 {
 		return
 	}
@@ -430,4 +431,38 @@ func clampChatWindowBounds(bounds woxui.Rect) woxui.Rect {
 		bounds.Height = chatWindowMinimumHeight
 	}
 	return bounds
+}
+
+// maximizeWorkAreaBounds returns the work area of the display the window overlaps most.
+func maximizeWorkAreaBounds(current woxui.Rect) woxui.Rect {
+	displays, err := screen.ListDisplays()
+	if err != nil || len(displays) == 0 {
+		return current
+	}
+	return maximizeWorkAreaBoundsOnDisplays(current, displays)
+}
+
+func maximizeWorkAreaBoundsOnDisplays(current woxui.Rect, displays []screen.Display) woxui.Rect {
+	if len(displays) == 0 {
+		return current
+	}
+	best := displays[0].WorkArea
+	bestArea := -1
+	for _, display := range displays {
+		work := display.WorkArea
+		left, top := max(int(current.X), work.X), max(int(current.Y), work.Y)
+		right, bottom := min(int(current.X+current.Width), work.Right()), min(int(current.Y+current.Height), work.Bottom())
+		area := max(0, right-left) * max(0, bottom-top)
+		if area > bestArea || (area == bestArea && display.Primary) {
+			best, bestArea = work, area
+		}
+	}
+	return woxui.Rect{X: float32(best.X), Y: float32(best.Y), Width: float32(best.Width), Height: float32(best.Height)}
+}
+
+func abs32(value float32) float32 {
+	if value < 0 {
+		return -value
+	}
+	return value
 }

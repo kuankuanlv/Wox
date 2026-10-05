@@ -24,7 +24,6 @@ import (
 	"wox/common/icons"
 	"wox/plugin"
 	"wox/plugin/system"
-	notesplugin "wox/plugin/system/notes"
 	shellplugin "wox/plugin/system/shell"
 	"wox/setting/definition"
 	"wox/setting/validator"
@@ -1170,12 +1169,10 @@ func resolveClipboardFilesystemPath(content string) (string, bool) {
 	return path, info.IsDir()
 }
 
-// locationLinkActions hands a clipboard filesystem location to Shell, Folder, and Notes.
+// locationLinkActions hands a clipboard filesystem location to Shell.
 func (c *ClipboardPlugin) locationLinkActions(path string, isDir bool) []plugin.QueryResultAction {
 	return []plugin.QueryResultAction{
 		shellplugin.OpenAtDirectoryAction(c.api, path, isDir),
-		system.BrowsePathAction(c.api, path),
-		notesplugin.CreateNoteAction(c.api, "", "", path),
 	}
 }
 
@@ -1449,7 +1446,6 @@ func (c *ClipboardPlugin) convertFileRecord(ctx context.Context, record Clipboar
 		actions = append(actions, c.locationLinkActions(singlePath, util.IsDirExists(singlePath))...)
 	} else if len(filePaths) > 0 {
 		actions = append(actions, c.openContainingFolderAction(record, filePaths[0]))
-		actions = append(actions, notesplugin.CreateNoteAction(c.api, "", strings.Join(filePaths, "\n"), ""))
 	}
 
 	if !record.IsFavorite {
@@ -1677,8 +1673,6 @@ func (c *ClipboardPlugin) convertTextRecord(ctx context.Context, record Clipboar
 
 	if filesystemPath != "" {
 		actions = append(actions, c.locationLinkActions(filesystemPath, filesystemIsDir)...)
-	} else {
-		actions = append(actions, notesplugin.CreateNoteAction(c.api, "", record.Content, ""))
 	}
 
 	if !record.IsFavorite {
@@ -1975,7 +1969,6 @@ func (c *ClipboardPlugin) convertImageRecord(ctx context.Context, record Clipboa
 			result.Actions = append(actions, result.Actions[1:]...)
 		}
 	}
-	result.Actions = append(result.Actions, notesplugin.CreateNoteAction(c.api, "", "", record.FilePath))
 	return result
 }
 

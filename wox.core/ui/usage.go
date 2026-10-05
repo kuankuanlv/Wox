@@ -8,7 +8,6 @@ import (
 	"wox/analytics"
 	"wox/common"
 	"wox/database"
-	appplugin "wox/plugin/system/app"
 
 	"gorm.io/gorm"
 )
@@ -330,20 +329,14 @@ func fillTopItems(ctx context.Context, resp *usageStatsResponse) {
 		resp.currentPeriodEndUnixMs,
 	).Scan(&resp.TopPlugins).Error
 
-	appSubjectIds := make([]string, 0, len(resp.TopApps))
 	for i := range resp.TopApps {
 		if resp.TopApps[i].Name == "" {
 			resp.TopApps[i].Name = resp.TopApps[i].Id
 		}
-		appSubjectIds = append(appSubjectIds, resp.TopApps[i].Id)
 	}
-
-	appIcons := appplugin.GetUsageAppIcons(ctx, appSubjectIds)
-	for i := range resp.TopApps {
-		if icon, ok := appIcons[resp.TopApps[i].Id]; ok {
-			resp.TopApps[i].Icon = icon
-		}
-	}
+	// App icon enrichment was provided by the built-in app plugin, removed in
+	// the externalization batch. TopApps keep id/name; icons return with an
+	// external app plugin.
 	for i := range resp.TopPlugins {
 		if resp.TopPlugins[i].Name == "" {
 			resp.TopPlugins[i].Name = resp.TopPlugins[i].Id

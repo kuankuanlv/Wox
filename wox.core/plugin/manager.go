@@ -2330,16 +2330,11 @@ func shouldHidePreviewForGlobalQuery(query Query, preview WoxPreview) bool {
 		preview.PreviewType != WoxPreviewTypeTriggerKeywordConflict
 }
 
-// shouldClearGroupForGlobalQuery keeps global search as a flat ranked list.
-// File search is the exception: its many hits stay in one group below others.
+// shouldClearGroupForGlobalQuery keeps the plugin Group on global queries so
+// results are grouped by plugin (app / qigeTools / web-search, ...) instead of a
+// flat list. Returns false: no group is cleared.
 func shouldClearGroupForGlobalQuery(query Query, pluginInstance *Instance) bool {
-	if !query.IsGlobalQuery() {
-		return false
-	}
-	if pluginInstance != nil && pluginInstance.Metadata.Id == fileSearchPluginID {
-		return false
-	}
-	return true
+	return false
 }
 
 // limitGlobalQueryPluginScore keeps plugin-provided scores within Wox's shared
@@ -2357,8 +2352,13 @@ func limitGlobalQueryPluginScore(query Query, score int64) int64 {
 	return globalQueryPluginScoreLimit
 }
 
+// resultScoreHash collapses the self-learning identity to (pluginId, title[,
+// scoreKey]) — SubTitle is intentionally excluded so editing a result's URL /
+// subtitle does not invalidate the historical preference. Both the keyword
+// candidate confirmation and item execution path go through this function, so
+// the two hashes stay aligned.
 func resultScoreHash(pluginId string, result QueryResult) setting.ResultHash {
-	return setting.NewResultHashFromParts(pluginId, result.Title, result.SubTitle, result.ScoreKey)
+	return setting.NewResultHashFromParts(pluginId, result.Title, "", result.ScoreKey)
 }
 
 func (m *Manager) calculateResultScore(ctx context.Context, pluginId string, result QueryResult, currentQuery string) int64 {
@@ -4542,7 +4542,16 @@ func (m *Manager) buildKeywordCandidateResults(ctx context.Context, pluginInstan
 			continue
 		}
 		scoreKey := kuankuanlvCandidateScoreKeyPrefix + pluginInstance.Metadata.Id + ":" + kw
-		score := m.calculateResultScore(ctx, pluginInstance.Metadata.Id, QueryResult{ScoreKey: scoreKey}, query.RawQuery)
+		// The self-learning lookup must use the same Title/SubTitle/ScoreKey tuple
+		// as confirmKeywordCandidate, otherwise the actioned-result hash never
+		// matches and keyword usage does not lift the candidate. A bare keyword
+		// query (user typed the keyword prefix) additionally boosts the candidate
+		// above wildcard ("*") plugin global results, matching the polishResult
+		// keywordMatchBoost rule.
+		score := m.calculateResultScore(ctx, pluginInstance.Metadata.Id, QueryResult{Title: kw, SubTitle: pluginName, ScoreKey: scoreKey}, query.RawQuery)
+		if query.TriggerKeyword != "" {
+			score += keywordMatchBoost
+		}
 		candidates = append(candidates, m.newKeywordCandidateResult(ctx, pluginInstance, pluginName, kw, score))
 	}
 	return candidates

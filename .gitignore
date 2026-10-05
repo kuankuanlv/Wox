@@ -59,3 +59,5 @@ wox.ui.flutter/
 cache/
 output/
 manifests/
+# chat plugin runtime attachment test artifacts (generated at runtime, not source)
+wox.core/plugin/system/chat/attachments/*.png

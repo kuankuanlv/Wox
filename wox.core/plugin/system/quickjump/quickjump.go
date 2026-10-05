@@ -15,7 +15,6 @@ import (
 	"wox/i18n"
 	"wox/plugin"
 	filesearchplugin "wox/plugin/system/file_search"
-	notesplugin "wox/plugin/system/notes"
 	shellplugin "wox/plugin/system/shell"
 	"wox/setting"
 	"wox/setting/definition"
@@ -475,7 +474,6 @@ func (c *QuickJumpPlugin) buildDirectoryEntryResult(query plugin.Query, title st
 				},
 			},
 			c.buildExecuteCommandAtLocationAction(fullPath, isDir),
-			notesplugin.CreateNoteAction(c.api, "", "", fullPath),
 			defaultAction,
 		},
 	}
@@ -589,7 +587,6 @@ func (c *QuickJumpPlugin) buildJumpFolderResult(query plugin.Query, title string
 				},
 			},
 			c.buildExecuteCommandAtLocationAction(folderPath, true),
-			notesplugin.CreateNoteAction(c.api, "", "", folderPath),
 		},
 	}
 }

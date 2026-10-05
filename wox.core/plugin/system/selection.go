@@ -8,7 +8,6 @@ import (
 	"wox/common"
 	"wox/common/icons"
 	"wox/plugin"
-	notesplugin "wox/plugin/system/notes"
 	"wox/plugin/system/quickjump"
 	shellplugin "wox/plugin/system/shell"
 	"wox/setting/definition"
@@ -350,13 +349,6 @@ func (i *SelectionPlugin) queryForSelectionText(ctx context.Context, text string
 
 	if util.IsFileExists(strings.TrimSpace(text)) {
 		results = append(results, i.queryForFile(ctx, strings.TrimSpace(text))...)
-	} else {
-		noteAction := notesplugin.CreateNoteAction(i.api, "", text, "")
-		results = append(results, plugin.QueryResult{
-			Title:   noteAction.Name,
-			Icon:    noteAction.Icon,
-			Actions: []plugin.QueryResultAction{noteAction},
-		})
 	}
 
 	return results
@@ -436,13 +428,6 @@ func (i *SelectionPlugin) queryForFile(ctx context.Context, filePath string) (re
 		Title:   executeAction.Name,
 		Icon:    executeAction.Icon,
 		Actions: []plugin.QueryResultAction{executeAction},
-	})
-
-	noteAction := notesplugin.CreateNoteAction(i.api, "", "", filePath)
-	results = append(results, plugin.QueryResult{
-		Title:   noteAction.Name,
-		Icon:    noteAction.Icon,
-		Actions: []plugin.QueryResultAction{noteAction},
 	})
 
 	results = append(results, plugin.QueryResult{

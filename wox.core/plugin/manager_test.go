@@ -594,16 +594,17 @@ func TestShouldClearGroupForGlobalQueryKeepsFilePlugin(t *testing.T) {
 	filePlugin := &Instance{Metadata: Metadata{Id: fileSearchPluginID}}
 	otherPlugin := &Instance{Metadata: Metadata{Id: "other-plugin"}}
 
+	// Global queries now keep the plugin Group so results are grouped by plugin.
 	assert.False(t, shouldClearGroupForGlobalQuery(globalQuery, filePlugin))
-	assert.True(t, shouldClearGroupForGlobalQuery(globalQuery, otherPlugin))
-	assert.True(t, shouldClearGroupForGlobalQuery(globalQuery, nil))
+	assert.False(t, shouldClearGroupForGlobalQuery(globalQuery, otherPlugin))
+	assert.False(t, shouldClearGroupForGlobalQuery(globalQuery, nil))
 	assert.False(t, shouldClearGroupForGlobalQuery(Query{Type: QueryTypeInput, TriggerKeyword: "f"}, filePlugin))
 
 	groupedPlugin := &Instance{Metadata: Metadata{
 		Id:              "games",
 		TriggerKeywords: []string{"*", "game"},
 	}}
-	assert.True(t, shouldClearGroupForGlobalQuery(globalQuery, groupedPlugin))
+	assert.False(t, shouldClearGroupForGlobalQuery(globalQuery, groupedPlugin))
 	bareQuery, owner := newQueryInputWithPlugins("game", []*Instance{groupedPlugin})
 	assert.False(t, bareQuery.IsGlobalQuery())
 	assert.Equal(t, owner, groupedPlugin)

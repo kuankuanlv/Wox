@@ -20,7 +20,6 @@ import (
 	woxwidget "wox/ui/widget"
 	"wox/util"
 	"wox/util/clipboard"
-	"wox/util/emojisearch"
 	"wox/util/screen"
 )
 
@@ -72,8 +71,6 @@ type App struct {
 	settingsView   *woxui.ManagedWindow
 	onboardingView *woxui.ManagedWindow
 	chatView       *woxui.ManagedWindow
-	noteWindows    map[string]*notesWindowController
-	activeNote     *notesWindowController
 	window         *woxui.Window
 	host           *woxwidget.Host
 	settingsHost   *woxwidget.Host
@@ -206,8 +203,6 @@ type App struct {
 	choiceTooltipRevision         atomic.Uint64
 	settingsTableEditor           *formTableEditorState
 	recentFormTableEmojis         []string
-	formTableEmojiSearchOnce      sync.Once
-	formTableEmojiSearchEntries   []emojisearch.Entry
 	glanceItem                    *glanceItem
 	glanceLoading                 bool
 	glanceRevision                uint64
@@ -356,7 +351,6 @@ func newApp(isDev bool, services contract.Services, windows *woxui.WindowManager
 		filePreviewManualPaths: map[string]bool{},
 		mdDocs:                 map[string]woxcomponent.MarkdownDocument{},
 		previewLayouts:         map[string]*textLayoutCache{},
-		noteWindows:            map[string]*notesWindowController{},
 		show: showAppParams{
 			WindowWidth:    defaultWidth,
 			MaxResultCount: defaultMaxResult,
@@ -544,9 +538,6 @@ func (a *App) Close() error {
 	}
 
 	a.destroyed.Store(true)
-	for _, noteWindow := range a.noteWindows {
-		_ = noteWindow.flush()
-	}
 	cancel := a.cancel
 	if cancel != nil {
 		cancel()

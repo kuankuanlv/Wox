@@ -132,7 +132,7 @@ func TestIncrementalToolbarMessageWaitsForMinimumVisibleDuration(t *testing.T) {
 	}
 }
 
-func TestFileSearchResultActionsIncludeNotesAndShell(t *testing.T) {
+func TestFileSearchResultActionsIncludeShellActions(t *testing.T) {
 	plugin := &FileSearchPlugin{api: fileSearchToolbarTestAPI{}}
 	actions := plugin.buildFileSearchResultActions(context.Background(), filesearch.SearchResult{
 		Path:  `/Users/demo/main.go`,
@@ -143,11 +143,13 @@ func TestFileSearchResultActionsIncludeNotesAndShell(t *testing.T) {
 		"i18n:plugin_file_copy_path":            false,
 		"i18n:plugin_file_copy_name":            false,
 		"i18n:plugin_file_execute_command_here": false,
-		"i18n:plugin_notes_action_save":         false,
 	}
 	for _, action := range actions {
 		if _, ok := want[action.Name]; ok {
 			want[action.Name] = true
+		}
+		if action.Name == "i18n:plugin_notes_action_save" {
+			t.Fatalf("notes action must be removed after stage-0 notes plugin removal")
 		}
 	}
 	for name, found := range want {

@@ -17,7 +17,6 @@ import (
 	corehotkey "wox/hotkey"
 	"wox/i18n"
 	"wox/plugin"
-	"wox/plugin/system/mediaplayer"
 	"wox/resource"
 	"wox/setting/definition"
 	"wox/setting/validator"
@@ -2187,57 +2186,24 @@ func (p *DictationPlugin) cancelDictation(ctx context.Context) {
 }
 
 // startVolumeDucking pauses media only when it is already playing, then records
-// whether this session needs to restore playback later.
+// whether this session needs to restore playback later. The built-in
+// mediaplayer plugin was removed in this batch, so the media tool calls are
+// gone; the session state is kept as a no-op for the recording lifecycle.
 func (p *DictationPlugin) startVolumeDucking(ctx context.Context) {
 	p.setMediaPausedForDictation(false)
 
 	enabled := parseBoolSetting(p.api.GetSetting(ctx, settingKeyDuckVolume))
-	p.api.Log(ctx, plugin.LogLevelDebug, fmt.Sprintf("dictation: startVolumeDucking, enabled=%t", enabled))
-	if !enabled {
-		return
-	}
-	statusResult := p.api.InvokePluginTool(ctx, plugin.InvokePluginToolOption{
-		PluginId: mediaplayer.PluginID,
-		Name:     mediaplayer.ToolGetStatus,
-	})
-	if statusResult.Error != nil {
-		p.api.Log(ctx, plugin.LogLevelWarning, fmt.Sprintf("failed to read media status: %s", statusResult.Error.Error()))
-		return
-	}
-	status, _ := statusResult.Output["status"].(string)
-	if status != mediaplayer.ToolStatusPlaying {
-		p.api.Log(ctx, plugin.LogLevelDebug, fmt.Sprintf("dictation: media pause skipped: %s", status))
-		return
-	}
-
-	pauseResult := p.api.InvokePluginTool(ctx, plugin.InvokePluginToolOption{
-		PluginId: mediaplayer.PluginID,
-		Name:     mediaplayer.ToolPause,
-	})
-	if pauseResult.Error != nil {
-		p.api.Log(ctx, plugin.LogLevelWarning, fmt.Sprintf("failed to pause media: %s", pauseResult.Error.Error()))
-		return
-	}
-	p.setMediaPausedForDictation(true)
-	p.api.Log(ctx, plugin.LogLevelInfo, "dictation: media paused via plugin tool")
+	p.api.Log(ctx, plugin.LogLevelDebug, fmt.Sprintf("dictation: startVolumeDucking, enabled=%t (mediaplayer plugin removed)", enabled))
 }
 
 // stopVolumeDucking resumes media playback only when this dictation session
-// previously paused it.
+// previously paused it. With the mediaplayer plugin gone the recorded state is
+// always false, so this remains a lifecycle no-op.
 func (p *DictationPlugin) stopVolumeDucking(ctx context.Context) {
 	if !p.consumeMediaPausedForDictation() {
 		return
 	}
-	result := p.api.InvokePluginTool(ctx, plugin.InvokePluginToolOption{
-		PluginId: mediaplayer.PluginID,
-		Name:     mediaplayer.ToolPlay,
-	})
-	if result.Error != nil {
-		p.api.Log(ctx, plugin.LogLevelWarning, fmt.Sprintf("failed to resume media: %s", result.Error.Error()))
-		return
-	}
-
-	p.api.Log(ctx, plugin.LogLevelInfo, "dictation: media resumed via plugin tool")
+	p.api.Log(ctx, plugin.LogLevelInfo, "dictation: media paused state cleared")
 }
 
 func (p *DictationPlugin) setMediaPausedForDictation(paused bool) {

@@ -17,7 +17,6 @@ import (
 	"wox/common"
 	"wox/common/icons"
 	"wox/plugin"
-	notesplugin "wox/plugin/system/notes"
 	"wox/setting"
 	"wox/setting/definition"
 	"wox/setting/validator"
@@ -829,7 +828,6 @@ func (p *ScreenshotPlugin) screenshotHistoryResult(item screenshotHistoryItem) p
 					}
 				},
 			},
-			notesplugin.CreateNoteAction(p.api, "", "", item.path),
 		},
 	}
 	if ocrText := strings.TrimSpace(item.ocrText); ocrText != "" {

@@ -87,8 +87,11 @@ func (m *MRUManager) AddMRUItem(ctx context.Context, item MRUItem) error {
 func (m *MRUManager) GetMRUItems(ctx context.Context, limit int) ([]MRUItem, error) {
 	var records []database.MRURecord
 
-	// Only return items with use_count >= 3 to ensure quality
-	err := m.db.Where("use_count >= ?", 3).Find(&records).Error
+	// MRU means "recently used": any item the user acted on at least once is a
+	// legitimate start-page entry. The smart score below already ranks fresher /
+	// more frequent items higher, so a hard use_count gate would hide keyword
+	// candidates the user just confirmed (kuankuanlv confirm records use_count=1).
+	err := m.db.Where("use_count >= ?", 1).Find(&records).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to query MRU records: %w", err)
 	}

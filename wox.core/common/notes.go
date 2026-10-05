@@ -114,19 +114,3 @@ type NoteExport struct {
 	Content   string
 	Extension string
 }
-
-// NotesWindowAction describes how a plugin request should affect the Notes window.
-type NotesWindowAction string
-
-const (
-	NotesWindowToggle NotesWindowAction = "toggle"
-	NotesWindowOpen   NotesWindowAction = "open"
-	NotesWindowNew    NotesWindowAction = "new"
-)
-
-// NotesWindowRequest opens, creates, or toggles a native Notes utility window.
-type NotesWindowRequest struct {
-	Action       NotesWindowAction
-	NoteID       string
-	ExportFormat string
-}

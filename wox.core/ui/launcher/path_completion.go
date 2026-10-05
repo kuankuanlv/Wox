@@ -6,15 +6,46 @@ import (
 	"strings"
 )
 
-// isPathInput reports whether text looks like an absolute path. Relative paths
+// isPathInput reports whether text looks like a path. Relative paths
 // (foo/bar) are intentionally not treated as path input to avoid clashing with
-// keyword queries. A leading "~" never reaches here: the input layer expands it
-// to the home directory before any query text is consumed.
+// keyword queries. A leading "~" (bare home or "~/…") is treated as path input
+// so Tab completion can expand it; the input layer additionally rewrites "~"
+// to the absolute home directory while typing.
 func isPathInput(text string) bool {
 	if text == "" {
 		return false
 	}
-	return strings.HasPrefix(text, "/")
+	return strings.HasPrefix(text, "/") || text == "~" || strings.HasPrefix(text, "~/")
+}
+
+// expandTildeForLookup maps a leading "~" to the absolute home directory for
+// filesystem access. It returns the lookup path and whether tilde was used, so
+// the caller can rewrite the result back into the user's tilde spelling.
+func expandTildeForLookup(text string) (lookup string, usedTilde bool, home string) {
+	if text == "~" {
+		if dir, err := os.UserHomeDir(); err == nil {
+			return dir, true, dir
+		}
+		return text, false, ""
+	}
+	if strings.HasPrefix(text, "~/") {
+		if dir, err := os.UserHomeDir(); err == nil {
+			return dir + text[1:], true, dir
+		}
+	}
+	return text, false, ""
+}
+
+// tildePrefix rewrites an absolute path back into the user's tilde spelling when
+// the original input used "~". The trailing slash is preserved for directories.
+func tildePrefix(path, home string) string {
+	if home == "" || path == home {
+		return "~"
+	}
+	if rest, ok := strings.CutPrefix(path, home+"/"); ok {
+		return "~/" + rest
+	}
+	return path
 }
 
 // completePathTab completes the current editor text to the first child that
@@ -48,14 +79,16 @@ func (a *App) completePathTab() bool {
 // case-insensitive (macOS default filesystem behaviour); hidden children are
 // matched only when the typed base itself starts with ".".
 func firstPathChildCompletion(text string) (string, bool) {
+	lookup, usedTilde, home := expandTildeForLookup(text)
+
 	var dir string
 	var base string
-	if strings.HasSuffix(text, "/") {
-		dir = text
+	if strings.HasSuffix(lookup, "/") {
+		dir = lookup
 		base = ""
 	} else {
-		dir = filepath.Dir(text)
-		base = filepath.Base(text)
+		dir = filepath.Dir(lookup)
+		base = filepath.Base(lookup)
 	}
 
 	entries, err := os.ReadDir(dir)
@@ -84,6 +117,9 @@ func firstPathChildCompletion(text string) (string, bool) {
 		}
 		if isDir {
 			completed += "/"
+		}
+		if usedTilde {
+			completed = tildePrefix(completed, home)
 		}
 		return completed, true
 	}

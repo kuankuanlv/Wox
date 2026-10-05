@@ -13,7 +13,6 @@ type Services interface {
 	QueryServices
 	InteractionServices
 	SettingsServices
-	NotesServices
 }
 
 // QueryRequest contains one already-decoded query from the launcher.

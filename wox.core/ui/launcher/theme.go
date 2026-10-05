@@ -516,12 +516,6 @@ func (a *App) applyTheme(theme themeData) {
 		_ = chatWindow.SetAppearance(isDark)
 		_ = chatWindow.Invalidate()
 	}
-	for _, controller := range a.noteWindows {
-		if controller.managed != nil {
-			_ = controller.managed.Window().SetAppearance(isDark)
-			_ = controller.managed.Window().Invalidate()
-		}
-	}
 	a.invalidateSettingsWindow()
 	a.invalidateOnboardingWindow()
 	overlay.NotifyThemeChanged(isDark)

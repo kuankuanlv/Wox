@@ -690,10 +690,6 @@ func (pluginHealthUI) OpenSettingWindow(context.Context, common.SettingWindowCon
 
 func (pluginHealthUI) OpenOnboardingWindow(context.Context) {}
 
-func (pluginHealthUI) OpenNotesWindow(context.Context, common.NotesWindowRequest) {}
-
-func (pluginHealthUI) RefreshNotesWindow(context.Context, string) {}
-
 func (pluginHealthUI) OpenMacOSPermissionFlow(context.Context, string) {}
 
 func (pluginHealthUI) PickFiles(context.Context, common.PickFilesParams) []string { return nil }
