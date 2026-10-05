@@ -802,3 +802,44 @@ func TestNewResultHashFromPartsPrefersScoreKey(t *testing.T) {
 	byTitle := setting.NewResultHashFromParts("plugin-id", "title", "subtitle", "")
 	assert.Equal(t, setting.NewResultHash("plugin-id", "title", "subtitle"), byTitle)
 }
+
+// fallbackStub is a minimal Plugin that also implements FallbackSearcher, so
+// tests can observe whether QueryFallback is invoked for a given instance.
+type fallbackStub struct{}
+
+func (fallbackStub) Init(ctx context.Context, initParams InitParams) {}
+
+func (fallbackStub) Query(ctx context.Context, query Query) QueryResponse { return QueryResponse{} }
+
+func (fallbackStub) QueryFallback(ctx context.Context, query Query) []QueryResult {
+	return []QueryResult{{Title: "fallback-result"}}
+}
+
+// TestQueryFallbackSkipsDisabledPlugins guards the fix: a disabled plugin whose
+// runtime state was never initialized (r.api == nil) must not be invoked during
+// the global fallback pass, otherwise QueryFallback panics with a nil pointer.
+func TestQueryFallbackSkipsDisabledPlugins(t *testing.T) {
+	initPluginManagerLoadTest(t)
+	manager := &Manager{}
+	disabled := &Instance{
+		Metadata: Metadata{Id: "disabled-fallback", Name: "DisabledFallback"},
+		Plugin:   fallbackStub{},
+		Setting:  setting.NewPluginSetting(setting.NewPluginSettingStore(database.GetDB(), "disabled-fallback"), nil),
+	}
+	require.NoError(t, disabled.Setting.Disabled.Set(true))
+	manager.appendPluginInstance(disabled)
+
+	response := manager.QueryFallback(context.Background(), Query{Type: QueryTypeInput, RawQuery: "xyz"}, nil)
+	require.Len(t, response.Results, 0, "disabled plugin must not contribute fallback results")
+}
+
+// TestQueryFallbackInvokesEnabledPlugins verifies the enabled path still works.
+func TestQueryFallbackInvokesEnabledPlugins(t *testing.T) {
+	manager := &Manager{}
+	enabled := &Instance{Metadata: Metadata{Id: "enabled-fallback", Name: "EnabledFallback"}, Plugin: fallbackStub{}}
+	manager.appendPluginInstance(enabled)
+
+	response := manager.QueryFallback(context.Background(), Query{Type: QueryTypeInput, RawQuery: "xyz"}, nil)
+	require.Len(t, response.Results, 1)
+	assert.Equal(t, "fallback-result", response.Results[0].Title)
+}
